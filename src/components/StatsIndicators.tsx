@@ -47,7 +47,7 @@ export const StatsIndicators = () => {
 
     const totalAvailable = data.length;
     const filled = data.filter(
-      (r) => r.system_id !== null || r.notes !== null || (r.labor_hours !== null && r.labor_hours > 0)
+      (r) => r.labor_hours !== null && r.labor_hours > 0
     ).length;
     const totalHours = data.reduce((sum, r) => sum + (r.labor_hours || 0), 0);
 
