@@ -3,11 +3,17 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+interface UserProfile {
+  full_name: string | null;
+  email: string;
+}
+
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -19,9 +25,11 @@ export const useAuth = () => {
         if (session?.user) {
           setTimeout(() => {
             checkAdminRole(session.user.id);
+            loadUserProfile(session.user.id);
           }, 0);
         } else {
           setIsAdmin(false);
+          setUserProfile(null);
         }
       }
     );
@@ -31,6 +39,7 @@ export const useAuth = () => {
       setUser(session?.user ?? null);
       if (session?.user) {
         checkAdminRole(session.user.id);
+        loadUserProfile(session.user.id);
       }
       setLoading(false);
     });
@@ -47,6 +56,18 @@ export const useAuth = () => {
       .maybeSingle();
     
     setIsAdmin(!!data);
+  };
+
+  const loadUserProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', userId)
+      .maybeSingle();
+    
+    if (data) {
+      setUserProfile(data);
+    }
   };
 
   const signIn = async (email: string, password: string) => {
@@ -93,6 +114,7 @@ export const useAuth = () => {
     session,
     loading,
     isAdmin,
+    userProfile,
     signIn,
     signOut,
   };

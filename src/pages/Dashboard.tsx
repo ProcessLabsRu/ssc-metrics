@@ -3,13 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ProcessTree } from '@/components/ProcessTree';
 import { ResponsesTable } from '@/components/ResponsesTable';
-import { StatsIndicators } from '@/components/StatsIndicators';
-import { Button } from '@/components/ui/button';
-import { LogOut, Shield } from 'lucide-react';
+import { Header } from '@/components/Header';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 
 const Dashboard = () => {
-  const { user, isAdmin, loading, signOut } = useAuth();
+  const { user, isAdmin, userProfile, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [selectedF3Index, setSelectedF3Index] = useState<string | null>(null);
 
@@ -29,26 +27,11 @@ const Dashboard = () => {
 
   return (
     <div className="h-screen flex flex-col">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between mb-3">
-            <h1 className="text-xl font-bold">Система управления трудоемкостью</h1>
-            <div className="flex items-center gap-4">
-              {isAdmin && (
-                <Button variant="outline" onClick={() => navigate('/admin')}>
-                  <Shield className="mr-2 h-4 w-4" />
-                  Админ панель
-                </Button>
-              )}
-              <Button variant="ghost" onClick={signOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Выход
-              </Button>
-            </div>
-          </div>
-          <StatsIndicators />
-        </div>
-      </header>
+      <Header 
+        userProfile={userProfile} 
+        isAdmin={isAdmin} 
+        onSignOut={signOut} 
+      />
 
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal">
