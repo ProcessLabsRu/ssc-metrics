@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -24,11 +25,17 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { UserPlus, Loader2 } from 'lucide-react';
 
+interface UserWithRoles extends Profile {
+  roles: string[];
+  accessCount: number;
+}
+
 export const UserManagement = () => {
-  const [users, setUsers] = useState<Profile[]>([]);
+  const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [processes, setProcesses] = useState<Process1[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -43,12 +50,53 @@ export const UserManagement = () => {
   }, []);
 
   const loadUsers = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    setUsers(data || []);
+    setLoadingUsers(true);
+    try {
+      // Загружаем профили пользователей
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (!profiles) {
+        setUsers([]);
+        return;
+      }
+
+      // Для каждого пользователя загружаем его роли и доступы
+      const usersWithRoles = await Promise.all(
+        profiles.map(async (profile) => {
+          // Загружаем роли пользователя
+          const { data: userRoles } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', profile.id);
+
+          // Загружаем количество доступных процессов
+          const { count: accessCount } = await supabase
+            .from('user_access')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', profile.id);
+
+          return {
+            ...profile,
+            roles: userRoles?.map(r => r.role) || [],
+            accessCount: accessCount || 0,
+          };
+        })
+      );
+
+      setUsers(usersWithRoles);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      toast({
+        variant: "destructive",
+        title: "Ошибка загрузки",
+        description: "Не удалось загрузить список пользователей",
+      });
+    } finally {
+      setLoadingUsers(false);
+    }
   };
 
   const loadProcesses = async () => {
@@ -231,17 +279,54 @@ export const UserManagement = () => {
           <TableRow>
             <TableHead>Email</TableHead>
             <TableHead>Имя</TableHead>
+            <TableHead>Роли</TableHead>
+            <TableHead>Доступные процессы</TableHead>
             <TableHead>Дата создания</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell>{user.email}</TableCell>
-              <TableCell>{user.full_name || '-'}</TableCell>
-              <TableCell>{new Date(user.created_at).toLocaleDateString('ru-RU')}</TableCell>
+          {loadingUsers ? (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                <p className="text-sm text-muted-foreground mt-2">Загрузка пользователей...</p>
+              </TableCell>
             </TableRow>
-          ))}
+          ) : users.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                Пользователи не найдены
+              </TableCell>
+            </TableRow>
+          ) : (
+            users.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell className="font-medium">{user.email}</TableCell>
+                <TableCell>{user.full_name || '-'}</TableCell>
+                <TableCell>
+                  <div className="flex gap-1 flex-wrap">
+                    {user.roles.length > 0 ? (
+                      user.roles.map((role) => (
+                        <Badge 
+                          key={role} 
+                          variant={role === 'admin' ? 'default' : 'secondary'}
+                        >
+                          {role === 'admin' ? 'Администратор' : 
+                           role === 'moderator' ? 'Модератор' : 'Пользователь'}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Нет ролей</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">{user.accessCount}</Badge>
+                </TableCell>
+                <TableCell>{new Date(user.created_at).toLocaleDateString('ru-RU')}</TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>
