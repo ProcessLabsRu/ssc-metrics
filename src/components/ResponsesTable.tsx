@@ -86,6 +86,7 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
             f4_index: p4.f4_index,
             system_id: null,
             notes: null,
+            labor_hours: 0,
             created_at: new Date().toISOString(),
           },
         };
@@ -99,7 +100,21 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
     }
   };
 
-  const updateResponse = async (responseId: number, field: 'system_id' | 'notes', value: any) => {
+  const updateResponse = async (responseId: number, field: 'system_id' | 'notes' | 'labor_hours', value: any) => {
+    // Validate labor_hours
+    if (field === 'labor_hours') {
+      const numValue = parseFloat(value);
+      if (isNaN(numValue) || numValue < 0 || numValue > 250) {
+        toast({
+          variant: "destructive",
+          title: "Ошибка валидации",
+          description: "Трудоемкость должна быть от 0 до 250 часов",
+        });
+        return;
+      }
+      value = numValue;
+    }
+    
     try {
       if (responseId === 0) {
         const row = rows.find(r => r.response.id === 0);
@@ -112,6 +127,7 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
             f4_index: row.response.f4_index,
             system_id: field === 'system_id' ? value : null,
             notes: field === 'notes' ? value : null,
+            labor_hours: field === 'labor_hours' ? value : 0,
           })
           .select()
           .single();
@@ -169,23 +185,24 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
           <TableRow>
             <TableHead className="w-[50px]">№</TableHead>
             <TableHead className="min-w-[300px]">Процесс 4 уровня</TableHead>
-            <TableHead className="min-w-[200px]">ИТ-система</TableHead>
+            <TableHead className="w-[200px]">ИТ-система</TableHead>
+            <TableHead className="w-[120px]">Трудоемкость (часы)</TableHead>
             <TableHead className="min-w-[300px]">Примечания</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((row, index) => (
-            <TableRow key={row.process4.f4_index} className="hover:bg-[hsl(var(--table-hover))]">
+            <TableRow key={row.process4.f4_index}>
               <TableCell>{index + 1}</TableCell>
               <TableCell className="font-medium">{row.process4.f4_name}</TableCell>
-              <TableCell>
+              <TableCell className="p-0">
                 <Select
                   value={row.response.system_id?.toString() || ''}
                   onValueChange={(value) => 
                     updateResponse(row.response.id, 'system_id', value ? parseInt(value) : null)
                   }
                 >
-                  <SelectTrigger className="h-7 border-transparent bg-transparent hover:border-border focus:border-primary text-sm shadow-none">
+                  <SelectTrigger className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus:bg-accent/50 text-sm shadow-none">
                     <SelectValue placeholder="Выберите систему" />
                   </SelectTrigger>
                   <SelectContent>
@@ -197,13 +214,25 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
                   </SelectContent>
                 </Select>
               </TableCell>
-              <TableCell>
+              <TableCell className="p-0">
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="250"
+                  value={row.response.labor_hours ?? 0}
+                  onChange={(e) => updateResponse(row.response.id, 'labor_hours', e.target.value)}
+                  onBlur={(e) => updateResponse(row.response.id, 'labor_hours', e.target.value)}
+                  className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/50 text-sm shadow-none px-2"
+                />
+              </TableCell>
+              <TableCell className="p-0">
                 <Input
                   value={row.response.notes || ''}
                   onChange={(e) => updateResponse(row.response.id, 'notes', e.target.value)}
                   placeholder="Введите примечание"
                   onBlur={(e) => updateResponse(row.response.id, 'notes', e.target.value)}
-                  className="h-7 border-transparent bg-transparent hover:border-border focus-visible:border-primary text-sm shadow-none px-1"
+                  className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/50 text-sm shadow-none px-2"
                 />
               </TableCell>
             </TableRow>

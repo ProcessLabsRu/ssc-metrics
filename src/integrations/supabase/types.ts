@@ -235,6 +235,7 @@ export type Database = {
           created_at: string
           f4_index: string | null
           id: number
+          labor_hours: number | null
           notes: string | null
           system_id: number | null
           user_id: string | null
@@ -243,6 +244,7 @@ export type Database = {
           created_at?: string
           f4_index?: string | null
           id?: number
+          labor_hours?: number | null
           notes?: string | null
           system_id?: number | null
           user_id?: string | null
@@ -251,6 +253,7 @@ export type Database = {
           created_at?: string
           f4_index?: string | null
           id?: number
+          labor_hours?: number | null
           notes?: string | null
           system_id?: number | null
           user_id?: string | null

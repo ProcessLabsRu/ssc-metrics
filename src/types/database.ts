@@ -48,6 +48,7 @@ export interface UserResponse {
   f4_index: string | null;
   system_id: number | null;
   notes: string | null;
+  labor_hours: number | null;
   created_at: string;
 }
 
