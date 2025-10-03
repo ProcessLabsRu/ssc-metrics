@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Process4, System, UserResponse } from '@/types/database';
 import { useToast } from '@/hooks/use-toast';
@@ -33,18 +33,57 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
   const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const pendingChangesRef = useRef<Map<number, { field: string; value: any }[]>>(new Map());
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     loadSystems();
   }, []);
 
   useEffect(() => {
+    // Save pending changes before switching process
+    if (pendingChangesRef.current.size > 0) {
+      savePendingChanges();
+    }
+    
     if (selectedF3Index) {
       loadResponses();
     } else {
       setRows([]);
     }
   }, [selectedF3Index]);
+
+  // Auto-save with debounce
+  useEffect(() => {
+    if (pendingChangesRef.current.size > 0) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        savePendingChanges();
+      }, 1000);
+    }
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [rows]);
+
+  // Save on page unload
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      if (pendingChangesRef.current.size > 0) {
+        await savePendingChanges();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   const loadSystems = async () => {
     const { data } = await supabase
@@ -100,7 +139,65 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
     }
   };
 
-  const updateResponse = async (responseId: number, field: 'system_id' | 'notes' | 'labor_hours', value: any) => {
+  const savePendingChanges = async () => {
+    const changes = Array.from(pendingChangesRef.current.entries());
+    pendingChangesRef.current.clear();
+
+    for (const [responseId, fields] of changes) {
+      try {
+        if (responseId === 0) {
+          const row = rows.find(r => r.response.id === 0);
+          if (!row) continue;
+
+          const updateData: any = {
+            user_id: row.response.user_id,
+            f4_index: row.response.f4_index,
+            system_id: null,
+            notes: null,
+            labor_hours: 0,
+          };
+
+          fields.forEach(({ field, value }) => {
+            updateData[field] = value;
+          });
+
+          const { data, error } = await supabase
+            .from('user_responses')
+            .insert(updateData)
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          setRows(prev => prev.map(r => 
+            r.response.id === 0 && r.process4.f4_index === row.process4.f4_index
+              ? { ...r, response: data }
+              : r
+          ));
+        } else {
+          const updateData: any = {};
+          fields.forEach(({ field, value }) => {
+            updateData[field] = value;
+          });
+
+          const { error } = await supabase
+            .from('user_responses')
+            .update(updateData)
+            .eq('id', responseId);
+
+          if (error) throw error;
+        }
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Ошибка сохранения",
+          description: error.message,
+        });
+      }
+    }
+  };
+
+  const updateResponse = (responseId: number, field: 'system_id' | 'notes' | 'labor_hours', value: any) => {
     // Validate labor_hours
     if (field === 'labor_hours') {
       const numValue = parseFloat(value);
@@ -114,52 +211,23 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
       }
       value = numValue;
     }
-    
-    try {
-      if (responseId === 0) {
-        const row = rows.find(r => r.response.id === 0);
-        if (!row) return;
 
-        const { data, error } = await supabase
-          .from('user_responses')
-          .insert({
-            user_id: row.response.user_id,
-            f4_index: row.response.f4_index,
-            system_id: field === 'system_id' ? value : null,
-            notes: field === 'notes' ? value : null,
-            labor_hours: field === 'labor_hours' ? value : 0,
-          })
-          .select()
-          .single();
+    // Update local state immediately
+    setRows(prev => prev.map(r => 
+      r.response.id === responseId
+        ? { ...r, response: { ...r.response, [field]: value } }
+        : r
+    ));
 
-        if (error) throw error;
-
-        setRows(prev => prev.map(r => 
-          r.response.id === 0 && r.process4.f4_index === row.process4.f4_index
-            ? { ...r, response: data }
-            : r
-        ));
-      } else {
-        const { error } = await supabase
-          .from('user_responses')
-          .update({ [field]: value })
-          .eq('id', responseId);
-
-        if (error) throw error;
-
-        setRows(prev => prev.map(r => 
-          r.response.id === responseId
-            ? { ...r, response: { ...r.response, [field]: value } }
-            : r
-        ));
-      }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Ошибка сохранения",
-        description: error.message,
-      });
+    // Add to pending changes
+    const changes = pendingChangesRef.current.get(responseId) || [];
+    const existingIndex = changes.findIndex(c => c.field === field);
+    if (existingIndex >= 0) {
+      changes[existingIndex].value = value;
+    } else {
+      changes.push({ field, value });
     }
+    pendingChangesRef.current.set(responseId, changes);
   };
 
   if (!selectedF3Index) {
@@ -222,7 +290,6 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
                   max="250"
                   value={row.response.labor_hours ?? 0}
                   onChange={(e) => updateResponse(row.response.id, 'labor_hours', e.target.value)}
-                  onBlur={(e) => updateResponse(row.response.id, 'labor_hours', e.target.value)}
                   className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/50 text-sm shadow-none px-2"
                 />
               </TableCell>
@@ -231,7 +298,6 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
                   value={row.response.notes || ''}
                   onChange={(e) => updateResponse(row.response.id, 'notes', e.target.value)}
                   placeholder="Введите примечание"
-                  onBlur={(e) => updateResponse(row.response.id, 'notes', e.target.value)}
                   className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/50 text-sm shadow-none px-2"
                 />
               </TableCell>

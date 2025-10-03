@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronRight, ChevronDown, Folder } from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Process1, Process2, Process3 } from '@/types/database';
 import { cn } from '@/lib/utils';
@@ -142,7 +142,7 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess }: ProcessTreePro
                               : "hover:bg-[hsl(var(--tree-item-hover))]"
                           )}
                         >
-                          <Folder className="h-4 w-4 mr-2 flex-shrink-0" />
+                          <FileText className="h-4 w-4 mr-2 flex-shrink-0 text-blue-500" />
                           <span className="truncate">{node3.f3_name}</span>
                         </button>
                       ))}
