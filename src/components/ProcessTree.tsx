@@ -51,17 +51,31 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess }: ProcessTreePro
         .select('*')
         .order('sort');
 
-      const tree: TreeNode[] = (p1Data || []).map(f1 => {
-        const level2 = (p2Data || []).filter(f2 => f2.f1_index === f1.f1_index);
-        
-        return {
-          f1,
-          children2: level2.map(f2 => ({
-            f2,
-            children3: (p3Data || []).filter(f3 => f3.f2_index === f2.f2_index),
-          })),
-        };
-      });
+      const { data: p4Data } = await supabase
+        .from('process_4')
+        .select('f4_index, f3_index')
+        .eq('is_active', true);
+
+      const availableF3 = new Set(p4Data?.map(p4 => p4.f3_index) || []);
+
+      const tree: TreeNode[] = (p1Data || [])
+        .map(f1 => {
+          const level2 = (p2Data || [])
+            .filter(f2 => f2.f1_index === f1.f1_index)
+            .map(f2 => ({
+              f2,
+              children3: (p3Data || [])
+                .filter(f3 => f3.f2_index === f2.f2_index)
+                .filter(f3 => availableF3.has(f3.f3_index)),
+            }))
+            .filter(node2 => node2.children3.length > 0);
+          
+          return {
+            f1,
+            children2: level2,
+          };
+        })
+        .filter(node1 => node1.children2.length > 0);
 
       setTreeData(tree);
     } catch (error) {
