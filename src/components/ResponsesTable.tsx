@@ -2,7 +2,17 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Process4, System, UserResponse } from '@/types/database';
 import { useToast } from '@/hooks/use-toast';
-
+import { Button } from '@/components/ui/button';
+import { MessageSquare, MessageSquareText } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -32,6 +42,8 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(false);
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<{ responseId: number; note: string } | null>(null);
   const { toast } = useToast();
   const pendingChangesRef = useRef<Map<number, { field: string; value: any }[]>>(new Map());
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
@@ -230,6 +242,19 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
     pendingChangesRef.current.set(responseId, changes);
   };
 
+  const openNoteDialog = (responseId: number, currentNote: string | null) => {
+    setEditingNote({ responseId, note: currentNote || '' });
+    setNoteDialogOpen(true);
+  };
+
+  const saveNote = () => {
+    if (editingNote) {
+      updateResponse(editingNote.responseId, 'notes', editingNote.note || null);
+    }
+    setNoteDialogOpen(false);
+    setEditingNote(null);
+  };
+
   if (!selectedF3Index) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -255,7 +280,7 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
             <TableHead className="min-w-[300px]">Процесс 4 уровня</TableHead>
             <TableHead className="w-[200px]">ИТ-система</TableHead>
             <TableHead className="w-[120px]">Трудоемкость (часы)</TableHead>
-            <TableHead className="min-w-[300px]">Примечания</TableHead>
+            <TableHead className="w-[80px] text-center">Примечания</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -293,19 +318,53 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
                   className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/50 focus-visible:outline-none text-sm px-2 py-2"
                 />
               </TableCell>
-              <TableCell className="p-0">
-                <input
-                  type="text"
-                  value={row.response.notes || ''}
-                  onChange={(e) => updateResponse(row.response.id, 'notes', e.target.value)}
-                  placeholder="Введите примечание"
-                  className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/50 focus-visible:outline-none text-sm px-2 py-2"
-                />
+              <TableCell className="text-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => openNoteDialog(row.response.id, row.response.notes)}
+                >
+                  {row.response.notes ? (
+                    <MessageSquareText className="h-4 w-4 text-blue-600" />
+                  ) : (
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Примечание</DialogTitle>
+            <DialogDescription>
+              Добавьте примечание к процессу
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea
+              value={editingNote?.note || ''}
+              onChange={(e) => setEditingNote(prev => 
+                prev ? { ...prev, note: e.target.value } : null
+              )}
+              placeholder="Введите примечание..."
+              className="min-h-[150px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoteDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button onClick={saveNote}>
+              Сохранить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
