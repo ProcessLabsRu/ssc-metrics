@@ -185,7 +185,7 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
                     updateResponse(row.response.id, 'system_id', value ? parseInt(value) : null)
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-7 border-transparent bg-transparent hover:border-border focus:border-primary text-sm shadow-none">
                     <SelectValue placeholder="Выберите систему" />
                   </SelectTrigger>
                   <SelectContent>
@@ -203,6 +203,7 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
                   onChange={(e) => updateResponse(row.response.id, 'notes', e.target.value)}
                   placeholder="Введите примечание"
                   onBlur={(e) => updateResponse(row.response.id, 'notes', e.target.value)}
+                  className="h-7 border-transparent bg-transparent hover:border-border focus-visible:border-primary text-sm shadow-none px-1"
                 />
               </TableCell>
             </TableRow>
