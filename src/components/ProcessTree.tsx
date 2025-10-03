@@ -101,7 +101,7 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess }: ProcessTreePro
         <div key={node1.f1.f1_index}>
           <button
             onClick={() => toggleExpand1(node1.f1.f1_index)}
-            className="flex items-center w-full px-2 py-1.5 text-sm rounded-md hover:bg-[hsl(var(--tree-item-hover))] transition-colors"
+            className="flex items-start w-full px-2 py-1.5 text-sm rounded-md hover:bg-[hsl(var(--tree-item-hover))] transition-colors"
           >
             {expanded1.has(node1.f1.f1_index) ? (
               <ChevronDown className="h-4 w-4 mr-1 flex-shrink-0" />
@@ -109,7 +109,7 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess }: ProcessTreePro
               <ChevronRight className="h-4 w-4 mr-1 flex-shrink-0" />
             )}
             <Folder className="h-4 w-4 mr-2 flex-shrink-0 text-primary" />
-            <span className="truncate">{node1.f1.f1_name}</span>
+            <span className="text-left break-words">{node1.f1.f1_name}</span>
           </button>
 
           {expanded1.has(node1.f1.f1_index) && (
@@ -118,7 +118,7 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess }: ProcessTreePro
                 <div key={node2.f2.f2_index}>
                   <button
                     onClick={() => toggleExpand2(node2.f2.f2_index)}
-                    className="flex items-center w-full px-2 py-1.5 text-sm rounded-md hover:bg-[hsl(var(--tree-item-hover))] transition-colors"
+                    className="flex items-start w-full px-2 py-1.5 text-sm rounded-md hover:bg-[hsl(var(--tree-item-hover))] transition-colors"
                   >
                     {expanded2.has(node2.f2.f2_index) ? (
                       <ChevronDown className="h-4 w-4 mr-1 flex-shrink-0" />
@@ -126,7 +126,7 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess }: ProcessTreePro
                       <ChevronRight className="h-4 w-4 mr-1 flex-shrink-0" />
                     )}
                     <Folder className="h-4 w-4 mr-2 flex-shrink-0 text-primary" />
-                    <span className="truncate">{node2.f2.f2_name}</span>
+                    <span className="text-left break-words">{node2.f2.f2_name}</span>
                   </button>
 
                   {expanded2.has(node2.f2.f2_index) && (
@@ -136,14 +136,14 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess }: ProcessTreePro
                           key={node3.f3_index}
                           onClick={() => onSelectProcess(node3.f3_index)}
                           className={cn(
-                            "flex items-center w-full px-2 py-1.5 text-sm rounded-md transition-colors",
+                            "flex items-start w-full px-2 py-1.5 text-sm rounded-md transition-colors",
                             selectedProcess === node3.f3_index
                               ? "bg-[hsl(var(--tree-item-active))] text-[hsl(var(--tree-item-active-text))] font-medium"
                               : "hover:bg-[hsl(var(--tree-item-hover))]"
                           )}
                         >
                           <FileText className="h-4 w-4 mr-2 flex-shrink-0 text-blue-500" />
-                          <span className="truncate">{node3.f3_name}</span>
+                          <span className="text-left break-words">{node3.f3_name}</span>
                         </button>
                       ))}
                     </div>
