@@ -10,17 +10,33 @@ const Admin = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && (!user || !isAdmin)) {
+    // Ждем завершения загрузки перед проверкой
+    if (loading) return;
+    
+    // Если пользователь не авторизован, отправляем на /auth
+    if (!user) {
       navigate('/auth');
+      return;
+    }
+    
+    // Если пользователь авторизован, но не админ, отправляем на главную
+    if (!isAdmin) {
+      navigate('/');
     }
   }, [user, isAdmin, loading, navigate]);
 
-  if (loading) {
+  // Показываем загрузку, пока идет проверка
+  if (loading || (user && !isAdmin)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-muted-foreground">Загрузка...</div>
       </div>
     );
+  }
+
+  // Если нет пользователя, не показываем контент (идет редирект)
+  if (!user) {
+    return null;
   }
 
   return (
