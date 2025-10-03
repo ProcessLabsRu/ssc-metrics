@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Process4, System, UserResponse } from '@/types/database';
 import { useToast } from '@/hooks/use-toast';
-import { Input } from '@/components/ui/input';
+
 import {
   Select,
   SelectContent,
@@ -283,22 +283,23 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
                 </Select>
               </TableCell>
               <TableCell className="p-0">
-                <Input
+                <input
                   type="number"
                   step="0.01"
                   min="0"
                   max="250"
                   value={row.response.labor_hours ?? 0}
                   onChange={(e) => updateResponse(row.response.id, 'labor_hours', e.target.value)}
-                  className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/50 text-sm shadow-none px-2"
+                  className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/50 focus-visible:outline-none text-sm px-2 py-2"
                 />
               </TableCell>
               <TableCell className="p-0">
-                <Input
+                <input
+                  type="text"
                   value={row.response.notes || ''}
                   onChange={(e) => updateResponse(row.response.id, 'notes', e.target.value)}
                   placeholder="Введите примечание"
-                  className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/50 text-sm shadow-none px-2"
+                  className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/50 focus-visible:outline-none text-sm px-2 py-2"
                 />
               </TableCell>
             </TableRow>
