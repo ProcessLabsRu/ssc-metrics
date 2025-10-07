@@ -127,6 +127,16 @@ export const UserManagement = () => {
     setFormData({ ...formData, selectedProcesses: newSelected });
   };
 
+  const handleRoleChange = (value: 'admin' | 'user') => {
+    if (value === 'admin') {
+      // Для администратора автоматически выбираем все процессы
+      const allProcesses = new Set(processes.map(p => p.f1_index));
+      setFormData({ ...formData, selectedRole: value, selectedProcesses: allProcesses });
+    } else {
+      setFormData({ ...formData, selectedRole: value });
+    }
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -251,7 +261,7 @@ export const UserManagement = () => {
                 <Label htmlFor="role">Роль</Label>
                 <Select
                   value={formData.selectedRole}
-                  onValueChange={(value: 'admin' | 'user') => setFormData({ ...formData, selectedRole: value })}
+                  onValueChange={handleRoleChange}
                   disabled={loading}
                 >
                   <SelectTrigger id="role">
@@ -262,6 +272,11 @@ export const UserManagement = () => {
                     <SelectItem value="admin">Администратор</SelectItem>
                   </SelectContent>
                 </Select>
+                {formData.selectedRole === 'admin' && (
+                  <p className="text-sm text-muted-foreground">
+                    Администратор имеет доступ ко всем процессам автоматически
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Доступные процессы 1 уровня</Label>
@@ -272,7 +287,7 @@ export const UserManagement = () => {
                         id={process.f1_index}
                         checked={formData.selectedProcesses.has(process.f1_index)}
                         onCheckedChange={() => toggleProcess(process.f1_index)}
-                        disabled={loading}
+                        disabled={loading || formData.selectedRole === 'admin'}
                       />
                       <label
                         htmlFor={process.f1_index}
