@@ -40,17 +40,17 @@ export const HoursGauge = ({ hours }: HoursGaugeProps) => {
   ];
 
   return (
-    <Card className="px-6 py-4 flex-1">
-      <div className="flex flex-col items-center">
-        <div className="text-xs text-muted-foreground mb-2">Человеко-часов</div>
-        <div className="relative w-full max-w-[200px] aspect-square">
+    <Card className="px-3 py-3 flex-1 h-[140px]">
+      <div className="flex flex-col items-center justify-center h-full">
+        <div className="text-xs text-muted-foreground mb-1">Человеко-часов</div>
+        <div className="relative w-full max-w-[80px] h-[60px]">
           <ResponsiveContainer width="100%" height="100%">
             <RadialBarChart
               cx="50%"
               cy="50%"
               innerRadius="60%"
               outerRadius="90%"
-              barSize={20}
+              barSize={8}
               data={data}
               startAngle={180}
               endAngle={0}
@@ -64,32 +64,18 @@ export const HoursGauge = ({ hours }: HoursGaugeProps) => {
               <RadialBar
                 background={{ fill: 'hsl(var(--muted))' }}
                 dataKey="value"
-                cornerRadius={10}
+                cornerRadius={5}
                 fill={color}
               />
             </RadialBarChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-3xl font-bold" style={{ color }}>
+            <div className="text-xl font-bold" style={{ color }}>
               {hours.toFixed(1)}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">{status}</div>
           </div>
         </div>
-        <div className="flex items-center gap-4 mt-3 text-xs">
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-[hsl(0_84%_60%)]" />
-            <span className="text-muted-foreground">0-144</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-[hsl(142_71%_45%)]" />
-            <span className="text-muted-foreground">145-175</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-[hsl(45_93%_47%)]" />
-            <span className="text-muted-foreground">176-250</span>
-          </div>
-        </div>
+        <div className="text-xs text-muted-foreground mt-1">{status}</div>
       </div>
     </Card>
   );
