@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { UserPlus, Loader2 } from 'lucide-react';
+import { UserPlus, Loader2, RefreshCw } from 'lucide-react';
 
 interface UserWithRoles extends Profile {
   roles: string[];
@@ -115,6 +115,31 @@ export const UserManagement = () => {
       .order('sort');
     
     setProcesses(data || []);
+  };
+
+  const generatePassword = () => {
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    const special = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+    const allChars = lowercase + uppercase + numbers + special;
+    
+    let password = '';
+    // Гарантируем наличие хотя бы одного символа каждого типа
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    password += special[Math.floor(Math.random() * special.length)];
+    
+    // Добавляем оставшиеся 4 символа случайным образом
+    for (let i = 4; i < 8; i++) {
+      password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+    
+    // Перемешиваем символы
+    password = password.split('').sort(() => Math.random() - 0.5).join('');
+    
+    setFormData({ ...formData, password });
   };
 
   const toggleProcess = (f1Index: string) => {
@@ -238,15 +263,28 @@ export const UserManagement = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Пароль</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                  disabled={loading}
-                  minLength={6}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="password"
+                    type="text"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                    disabled={loading}
+                    minLength={6}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={generatePassword}
+                    disabled={loading}
+                    title="Сгенерировать пароль"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="fullName">Полное имя</Label>
