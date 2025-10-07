@@ -337,7 +337,11 @@ export const UserManagement = () => {
                   ))}
                 </div>
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading || formData.selectedProcesses.size === 0}
+              >
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -347,6 +351,11 @@ export const UserManagement = () => {
                   'Создать пользователя'
                 )}
               </Button>
+              {formData.selectedProcesses.size === 0 && (
+                <p className="text-sm text-destructive text-center">
+                  Необходимо выбрать хотя бы один процесс 1 уровня
+                </p>
+              )}
             </form>
           </DialogContent>
         </Dialog>
