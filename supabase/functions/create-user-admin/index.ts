@@ -60,6 +60,14 @@ serve(async (req) => {
 
     console.log('Creating user:', { email, full_name, role, processes });
 
+    // Check if user already exists
+    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
+    const userExists = existingUser?.users?.some(u => u.email === email);
+    
+    if (userExists) {
+      throw new Error('A user with this email already exists');
+    }
+
     // Create user with admin API
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -70,6 +78,9 @@ serve(async (req) => {
 
     if (createError) {
       console.error('Error creating user:', createError);
+      if (createError.message?.includes('already been registered')) {
+        throw new Error('A user with this email already exists');
+      }
       throw createError;
     }
 
@@ -79,19 +90,8 @@ serve(async (req) => {
 
     console.log('User created successfully:', newUser.user.id);
 
-    // Create profile
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .insert({
-        id: newUser.user.id,
-        email,
-        full_name
-      });
-
-    if (profileError) {
-      console.error('Error creating profile:', profileError);
-      throw profileError;
-    }
+    // Wait for handle_new_user trigger to create profile
+    await new Promise(resolve => setTimeout(resolve, 200));
 
     // Insert user role
     const { error: roleInsertError } = await supabaseAdmin
