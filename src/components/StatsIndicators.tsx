@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
-import { ListChecks, CheckCircle2 } from 'lucide-react';
-import { HoursGauge } from './HoursGauge';
+import { ListChecks, CheckCircle2, Clock } from 'lucide-react';
 
 export const StatsIndicators = () => {
   const [stats, setStats] = useState({
@@ -61,23 +60,35 @@ export const StatsIndicators = () => {
 
   return (
     <div className="flex gap-4">
-      <Card className="px-3 py-3 flex-1 h-[140px]">
-        <div className="flex flex-col items-center justify-center h-full gap-2">
-          <ListChecks className="h-4 w-4 text-primary" />
-          <div className="text-xs text-muted-foreground">Доступно</div>
-          <div className="text-2xl font-bold">{stats.totalAvailable}</div>
+      <Card className="px-4 py-2">
+        <div className="flex items-center gap-2">
+          <ListChecks className="h-5 w-5 text-blue-500" />
+          <div>
+            <div className="text-xs text-muted-foreground">Доступно</div>
+            <div className="text-lg font-bold">{stats.totalAvailable}</div>
+          </div>
         </div>
       </Card>
 
-      <Card className="px-3 py-3 flex-1 h-[140px]">
-        <div className="flex flex-col items-center justify-center h-full gap-2">
-          <CheckCircle2 className="h-4 w-4 text-primary" />
-          <div className="text-xs text-muted-foreground">Заполнено</div>
-          <div className="text-2xl font-bold">{stats.filled}</div>
+      <Card className="px-4 py-2">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5 text-green-500" />
+          <div>
+            <div className="text-xs text-muted-foreground">Заполнено</div>
+            <div className="text-lg font-bold">{stats.filled}</div>
+          </div>
         </div>
       </Card>
 
-      <HoursGauge hours={stats.totalHours} />
+      <Card className="px-4 py-2">
+        <div className="flex items-center gap-2">
+          <Clock className="h-5 w-5 text-orange-500" />
+          <div>
+            <div className="text-xs text-muted-foreground">Человеко-часов</div>
+            <div className="text-lg font-bold">{stats.totalHours.toFixed(2)}</div>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 };
