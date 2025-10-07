@@ -1,1 +1,7 @@
 project_id = "bpnzpiileyneehtihivc"
+
+[functions.send-invitation-email]
+verify_jwt = false
+
+[functions.test-smtp-connection]
+verify_jwt = false

@@ -211,6 +211,33 @@ export const UserManagement = () => {
         description: "Новый пользователь успешно добавлен в систему",
       });
 
+      // Try to send invitation email
+      try {
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+          body: {
+            email: formData.email,
+            password: formData.password,
+            full_name: formData.fullName || formData.email,
+          },
+        });
+
+        if (emailError) throw emailError;
+
+        if (emailData?.success) {
+          toast({
+            title: "Приглашение отправлено",
+            description: `На ${formData.email} отправлено письмо с данными для входа`,
+          });
+        }
+      } catch (emailError: any) {
+        console.error('Error sending invitation:', emailError);
+        toast({
+          variant: "destructive",
+          title: "Письмо не отправлено",
+          description: `Пользователь создан, но письмо не отправлено: ${emailError.message}`,
+        });
+      }
+
       setOpen(false);
       setFormData({
         email: '',

@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { UserManagement } from '@/components/admin/UserManagement';
-import { LogOut } from 'lucide-react';
+import { SmtpSettings } from '@/components/admin/SmtpSettings';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LogOut, Users, Mail } from 'lucide-react';
 
 const Admin = () => {
   const { user, isAdmin, loading, signOut } = useAuth();
@@ -56,7 +58,24 @@ const Admin = () => {
         </div>
       </header>
       <main className="container mx-auto px-4 py-8">
-        <UserManagement />
+        <Tabs defaultValue="users" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Пользователи
+            </TabsTrigger>
+            <TabsTrigger value="smtp" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              SMTP настройки
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="users" className="mt-6">
+            <UserManagement />
+          </TabsContent>
+          <TabsContent value="smtp" className="mt-6">
+            <SmtpSettings />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
