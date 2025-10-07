@@ -176,35 +176,19 @@ export const UserManagement = () => {
 
     setLoading(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.fullName,
-          },
-          emailRedirectTo: `${window.location.origin}/`,
+      // Call Edge Function to create user with admin privileges
+      const { data: userData, error: createError } = await supabase.functions.invoke('create-user-admin', {
+        body: {
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.fullName,
+          role: formData.selectedRole,
+          processes: Array.from(formData.selectedProcesses),
         },
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('User creation failed');
-
-      await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: formData.selectedRole,
-        });
-
-      for (const f1Index of Array.from(formData.selectedProcesses)) {
-        await supabase
-          .from('user_access')
-          .insert({
-            user_id: authData.user.id,
-            f1_index: f1Index,
-          });
-      }
+      if (createError) throw createError;
+      if (!userData?.success) throw new Error('User creation failed');
 
       toast({
         title: "Пользователь создан",

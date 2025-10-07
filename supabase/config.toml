@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.test-smtp-connection]
 verify_jwt = false
+
+[functions.create-user-admin]
+verify_jwt = true
