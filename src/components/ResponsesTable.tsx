@@ -333,8 +333,8 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
                   className="h-8 w-8"
                   onClick={() => openNoteDialog(row.response.id, row.response.notes)}
                 >
-                  {row.response.notes ? (
-                    <MessageSquareText className="h-4 w-4 text-blue-600" />
+                  {row.response.notes && row.response.notes.length > 1 ? (
+                    <MessageSquareText className="h-4 w-4 text-green-700" />
                   ) : (
                     <MessageSquare className="h-4 w-4 text-muted-foreground" />
                   )}

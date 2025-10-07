@@ -77,14 +77,21 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess, refreshTrigger }
         .eq('user_id', user.id)
         .or('labor_hours.gt.0,system_id.not.is.null,notes.not.is.null');
 
+      // Фильтруем только реально заполненные записи (исключаем пустые строки)
+      const actuallyFilledData = filledData?.filter(r => 
+        (r.labor_hours && r.labor_hours > 0) ||
+        r.system_id !== null ||
+        (r.notes && r.notes.trim() !== '')
+      ) || [];
+
       // Build sets of filled indices
       const filledF3Set = new Set<string>();
       const filledF2Set = new Set<string>();
       const filledF1Set = new Set<string>();
 
-      if (filledData && filledData.length > 0) {
+      if (actuallyFilledData && actuallyFilledData.length > 0) {
         // Get f3_index from filled f4_index
-        const filledF4Indices = new Set(filledData.map(r => r.f4_index));
+        const filledF4Indices = new Set(actuallyFilledData.map(r => r.f4_index));
         
         p4Data?.forEach(p4 => {
           if (filledF4Indices.has(p4.f4_index)) {
