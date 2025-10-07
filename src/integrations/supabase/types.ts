@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      email_logs: {
+        Row: {
+          email_type: string
+          error_message: string | null
+          id: string
+          sent_at: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          email_type: string
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          status: string
+          user_id?: string | null
+        }
+        Update: {
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       process_1: {
         Row: {
           f1_index: string
@@ -167,6 +194,45 @@ export type Database = {
           full_name?: string | null
           id?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      smtp_settings: {
+        Row: {
+          created_at: string | null
+          from_email: string
+          from_name: string
+          host: string
+          id: string
+          is_active: boolean
+          port: number
+          updated_at: string | null
+          use_tls: boolean
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          from_email: string
+          from_name: string
+          host: string
+          id?: string
+          is_active?: boolean
+          port?: number
+          updated_at?: string | null
+          use_tls?: boolean
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          from_email?: string
+          from_name?: string
+          host?: string
+          id?: string
+          is_active?: boolean
+          port?: number
+          updated_at?: string | null
+          use_tls?: boolean
+          username?: string
         }
         Relationships: []
       }
