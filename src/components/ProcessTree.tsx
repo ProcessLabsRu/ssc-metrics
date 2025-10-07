@@ -78,6 +78,9 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess }: ProcessTreePro
         .filter(node1 => node1.children2.length > 0);
 
       setTreeData(tree);
+      
+      // Automatically expand all first-level elements
+      setExpanded1(new Set(tree.map(node => node.f1.f1_index)));
     } catch (error) {
       console.error('Error loading tree:', error);
     } finally {
