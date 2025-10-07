@@ -10,6 +10,7 @@ const Dashboard = () => {
   const { user, isAdmin, userProfile, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [selectedF3Index, setSelectedF3Index] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -43,6 +44,7 @@ const Dashboard = () => {
               <ProcessTree
                 onSelectProcess={setSelectedF3Index}
                 selectedProcess={selectedF3Index}
+                refreshTrigger={refreshTrigger}
               />
             </div>
           </ResizablePanel>
@@ -55,7 +57,10 @@ const Dashboard = () => {
                 <h2 className="font-semibold">Данные по процессам 4 уровня</h2>
               </div>
               <div className="h-[calc(100%-4rem)]">
-                <ResponsesTable selectedF3Index={selectedF3Index} />
+                <ResponsesTable 
+                  selectedF3Index={selectedF3Index} 
+                  onDataChange={() => setRefreshTrigger(prev => prev + 1)}
+                />
               </div>
             </div>
           </ResizablePanel>

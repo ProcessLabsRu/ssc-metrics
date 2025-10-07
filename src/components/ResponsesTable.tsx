@@ -31,6 +31,7 @@ import {
 
 interface ResponsesTableProps {
   selectedF3Index: string | null;
+  onDataChange?: () => void;
 }
 
 interface ResponseRow {
@@ -38,7 +39,7 @@ interface ResponseRow {
   process4: Process4;
 }
 
-export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
+export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTableProps) => {
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(false);
@@ -206,6 +207,11 @@ export const ResponsesTable = ({ selectedF3Index }: ResponsesTableProps) => {
           description: error.message,
         });
       }
+    }
+    
+    // Trigger refresh in ProcessTree after saving
+    if (onDataChange) {
+      onDataChange();
     }
   };
 

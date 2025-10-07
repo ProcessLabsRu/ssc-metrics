@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 interface ProcessTreeProps {
   onSelectProcess: (f3Index: string | null) => void;
   selectedProcess: string | null;
+  refreshTrigger?: number;
 }
 
 interface TreeNode {
@@ -17,18 +18,24 @@ interface TreeNode {
   }>;
 }
 
-export const ProcessTree = ({ onSelectProcess, selectedProcess }: ProcessTreeProps) => {
+export const ProcessTree = ({ onSelectProcess, selectedProcess, refreshTrigger }: ProcessTreeProps) => {
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [expanded1, setExpanded1] = useState<Set<string>>(new Set());
   const [expanded2, setExpanded2] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [filledF1, setFilledF1] = useState<Set<string>>(new Set());
+  const [filledF2, setFilledF2] = useState<Set<string>>(new Set());
+  const [filledF3, setFilledF3] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadTreeData();
-  }, []);
+  }, [refreshTrigger]);
 
   const loadTreeData = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data: userAccess } = await supabase
         .from('user_access')
         .select('f1_index');
@@ -57,6 +64,52 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess }: ProcessTreePro
         .eq('is_active', true);
 
       const availableF3 = new Set(p4Data?.map(p4 => p4.f3_index) || []);
+
+      // Load filled processes data
+      const { data: filledData } = await supabase
+        .from('user_responses')
+        .select(`
+          f4_index,
+          system_id,
+          labor_hours,
+          notes
+        `)
+        .eq('user_id', user.id)
+        .or('labor_hours.gt.0,system_id.not.is.null,notes.not.is.null');
+
+      // Build sets of filled indices
+      const filledF3Set = new Set<string>();
+      const filledF2Set = new Set<string>();
+      const filledF1Set = new Set<string>();
+
+      if (filledData && filledData.length > 0) {
+        // Get f3_index from filled f4_index
+        const filledF4Indices = new Set(filledData.map(r => r.f4_index));
+        
+        p4Data?.forEach(p4 => {
+          if (filledF4Indices.has(p4.f4_index)) {
+            filledF3Set.add(p4.f3_index);
+          }
+        });
+
+        // Get f2_index from filled f3_index
+        p3Data?.forEach(p3 => {
+          if (filledF3Set.has(p3.f3_index)) {
+            filledF2Set.add(p3.f2_index);
+          }
+        });
+
+        // Get f1_index from filled f2_index
+        p2Data?.forEach(p2 => {
+          if (filledF2Set.has(p2.f2_index)) {
+            filledF1Set.add(p2.f1_index);
+          }
+        });
+      }
+
+      setFilledF1(filledF1Set);
+      setFilledF2(filledF2Set);
+      setFilledF3(filledF3Set);
 
       const tree: TreeNode[] = (p1Data || [])
         .map(f1 => {
@@ -140,9 +193,9 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess }: ProcessTreePro
                     {expanded2.has(node2.f2.f2_index) ? (
                       <ChevronDown className="h-4 w-4 mr-1 flex-shrink-0" />
                     ) : (
-                      <ChevronRight className="h-4 w-4 mr-1 flex-shrink-0" />
+                     <ChevronRight className="h-4 w-4 mr-1 flex-shrink-0" />
                     )}
-                    <Folder className="h-4 w-4 mr-2 flex-shrink-0 text-primary" />
+                    <Folder className={`h-4 w-4 mr-2 flex-shrink-0 ${filledF2.has(node2.f2.f2_index) ? 'text-green-700' : 'text-primary'}`} />
                     <span className="text-left break-words">{node2.f2.f2_name}</span>
                   </button>
 
@@ -159,7 +212,7 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess }: ProcessTreePro
                               : "hover:bg-[hsl(var(--tree-item-hover))]"
                           )}
                         >
-                          <FileText className="h-4 w-4 mr-2 flex-shrink-0 text-blue-500" />
+                          <FileText className={`h-4 w-4 mr-2 flex-shrink-0 ${filledF3.has(node3.f3_index) ? 'text-green-700' : 'text-blue-500'}`} />
                           <span className="text-left break-words">{node3.f3_name}</span>
                         </button>
                       ))}
