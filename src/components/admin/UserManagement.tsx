@@ -23,6 +23,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { UserPlus, Loader2 } from 'lucide-react';
 
 interface UserWithRoles extends Profile {
@@ -40,6 +47,7 @@ export const UserManagement = () => {
     email: '',
     password: '',
     fullName: '',
+    selectedRole: 'user' as 'admin' | 'user',
     selectedProcesses: new Set<string>(),
   });
   const { toast } = useToast();
@@ -151,7 +159,7 @@ export const UserManagement = () => {
         .from('user_roles')
         .insert({
           user_id: authData.user.id,
-          role: 'user',
+          role: formData.selectedRole,
         });
 
       for (const f1Index of Array.from(formData.selectedProcesses)) {
@@ -173,6 +181,7 @@ export const UserManagement = () => {
         email: '',
         password: '',
         fullName: '',
+        selectedRole: 'user',
         selectedProcesses: new Set(),
       });
       loadUsers();
@@ -237,6 +246,22 @@ export const UserManagement = () => {
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   disabled={loading}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role">Роль</Label>
+                <Select
+                  value={formData.selectedRole}
+                  onValueChange={(value: 'admin' | 'user') => setFormData({ ...formData, selectedRole: value })}
+                  disabled={loading}
+                >
+                  <SelectTrigger id="role">
+                    <SelectValue placeholder="Выберите роль" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Пользователь</SelectItem>
+                    <SelectItem value="admin">Администратор</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Доступные процессы 1 уровня</Label>
