@@ -15,6 +15,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -30,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { UserPlus, Loader2, RefreshCw } from 'lucide-react';
+import { UserPlus, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 
 interface UserWithRoles extends Profile {
   roles: string[];
@@ -43,6 +53,8 @@ export const UserManagement = () => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -242,6 +254,43 @@ export const UserManagement = () => {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-user-admin', {
+        body: {
+          user_id: userToDelete.id,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Пользователь удален",
+        description: `Пользователь ${userToDelete.email} успешно удален из системы`,
+      });
+
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      loadUsers();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Ошибка удаления пользователя",
+        description: error.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmDeleteUser = (user: UserWithRoles) => {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -380,19 +429,20 @@ export const UserManagement = () => {
             <TableHead>Роли</TableHead>
             <TableHead>Доступные процессы</TableHead>
             <TableHead>Дата создания</TableHead>
+            <TableHead className="text-right">Действия</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {loadingUsers ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center py-8">
+              <TableCell colSpan={6} className="text-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 <p className="text-sm text-muted-foreground mt-2">Загрузка пользователей...</p>
               </TableCell>
             </TableRow>
           ) : users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                 Пользователи не найдены
               </TableCell>
             </TableRow>
@@ -422,11 +472,61 @@ export const UserManagement = () => {
                   <Badge variant="outline">{user.accessCount}</Badge>
                 </TableCell>
                 <TableCell>{new Date(user.created_at).toLocaleDateString('ru-RU')}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => confirmDeleteUser(user)}
+                    disabled={loading}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
               </TableRow>
             ))
           )}
         </TableBody>
       </Table>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Подтверждение удаления</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить пользователя <strong>{userToDelete?.email}</strong>?
+              <br />
+              <br />
+              Это действие удалит:
+              <ul className="list-disc list-inside mt-2">
+                <li>Профиль пользователя</li>
+                <li>Все роли пользователя</li>
+                <li>Доступы к процессам</li>
+                <li>Все ответы пользователя ({userToDelete?.accessCount || 0} записей)</li>
+              </ul>
+              <br />
+              Это действие необратимо.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={loading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Удаление...
+                </>
+              ) : (
+                'Удалить'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

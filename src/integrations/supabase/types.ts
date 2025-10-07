@@ -287,13 +287,6 @@ export type Database = {
             referencedRelation: "process_1"
             referencedColumns: ["f1_index"]
           },
-          {
-            foreignKeyName: "user_access_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       user_responses: {
@@ -339,13 +332,6 @@ export type Database = {
             referencedRelation: "systems"
             referencedColumns: ["system_id"]
           },
-          {
-            foreignKeyName: "user_responses_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       user_roles: {
@@ -364,15 +350,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_roles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
