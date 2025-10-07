@@ -293,7 +293,9 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
           {rows.map((row, index) => (
             <TableRow key={row.process4.f4_index}>
               <TableCell>{index + 1}</TableCell>
-              <TableCell className="font-medium">{row.process4.f4_name}</TableCell>
+              <TableCell className={`font-medium ${row.response.labor_hours && row.response.labor_hours > 0 ? 'text-green-700' : ''}`}>
+                {row.process4.f4_name}
+              </TableCell>
               <TableCell className="p-0">
                 <Select
                   value={row.response.system_id?.toString() || ''}
