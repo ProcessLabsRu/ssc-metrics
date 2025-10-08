@@ -40,11 +40,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { UserPlus, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { UserPlus, Loader2, RefreshCw, Trash2, Mail } from 'lucide-react';
 
 interface UserWithRoles extends Profile {
   roles: string[];
   accessCount: number;
+  invitation_sent_at: string | null;
+  last_sign_in_at: string | null;
 }
 
 export const UserManagement = () => {
@@ -102,6 +104,8 @@ export const UserManagement = () => {
             ...profile,
             roles: userRoles?.map(r => r.role) || [],
             accessCount: accessCount || 0,
+            invitation_sent_at: profile.invitation_sent_at,
+            last_sign_in_at: profile.last_sign_in_at,
           };
         })
       );
@@ -214,6 +218,7 @@ export const UserManagement = () => {
             email: formData.email,
             password: formData.password,
             full_name: formData.fullName || formData.email,
+            user_id: userData.user.id,
           },
         });
 
@@ -289,6 +294,96 @@ export const UserManagement = () => {
   const confirmDeleteUser = (user: UserWithRoles) => {
     setUserToDelete(user);
     setDeleteDialogOpen(true);
+  };
+
+  const handleResendInvitation = async (userId: string) => {
+    try {
+      const { error } = await supabase.functions.invoke('resend-invitation-email', {
+        body: { user_id: userId }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Успешно",
+        description: "Приглашение отправлено повторно",
+      });
+
+      loadUsers();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: error.message,
+      });
+    }
+  };
+
+  const getStatusBadge = (user: UserWithRoles) => {
+    if (user.last_sign_in_at) {
+      return (
+        <Badge variant="default" className="bg-green-500">
+          Активен
+        </Badge>
+      );
+    }
+    if (user.invitation_sent_at) {
+      return (
+        <Badge variant="secondary">
+          Письмо отправлено
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline">
+        Ожидает приглашения
+      </Badge>
+    );
+  };
+
+  const handleResendInvitation = async (userId: string) => {
+    try {
+      const { error } = await supabase.functions.invoke('resend-invitation-email', {
+        body: { user_id: userId }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Успешно",
+        description: "Приглашение отправлено повторно",
+      });
+
+      loadUsers();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: error.message,
+      });
+    }
+  };
+
+  const getStatusBadge = (user: UserWithRoles) => {
+    if (user.last_sign_in_at) {
+      return (
+        <Badge variant="default" className="bg-green-500">
+          Активен
+        </Badge>
+      );
+    }
+    if (user.invitation_sent_at) {
+      return (
+        <Badge variant="secondary">
+          Письмо отправлено
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline">
+        Ожидает приглашения
+      </Badge>
+    );
   };
 
   return (
@@ -427,6 +522,7 @@ export const UserManagement = () => {
             <TableHead>Email</TableHead>
             <TableHead>Имя</TableHead>
             <TableHead>Роли</TableHead>
+            <TableHead>Статус</TableHead>
             <TableHead>Доступные процессы</TableHead>
             <TableHead>Дата создания</TableHead>
             <TableHead className="text-right">Действия</TableHead>
@@ -435,19 +531,18 @@ export const UserManagement = () => {
         <TableBody>
           {loadingUsers ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-8">
+              <TableCell colSpan={7} className="text-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 <p className="text-sm text-muted-foreground mt-2">Загрузка пользователей...</p>
               </TableCell>
             </TableRow>
           ) : users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                 Пользователи не найдены
               </TableCell>
             </TableRow>
           ) : (
-            users.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">{user.email}</TableCell>
                 <TableCell>{user.full_name || '-'}</TableCell>
@@ -468,23 +563,36 @@ export const UserManagement = () => {
                     )}
                   </div>
                 </TableCell>
+                <TableCell>{getStatusBadge(user)}</TableCell>
                 <TableCell>
                   <Badge variant="outline">{user.accessCount}</Badge>
                 </TableCell>
                 <TableCell>{new Date(user.created_at).toLocaleDateString('ru-RU')}</TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => confirmDeleteUser(user)}
-                    disabled={loading}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2 justify-end">
+                    {!user.last_sign_in_at && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleResendInvitation(user.id)}
+                        disabled={loading}
+                        title="Отправить приглашение повторно"
+                      >
+                        <Mail className="h-4 w-4 text-blue-500" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => confirmDeleteUser(user)}
+                      disabled={loading}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
-            ))
           )}
         </TableBody>
       </Table>

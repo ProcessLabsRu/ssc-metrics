@@ -5,11 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface InvitationRequest {
-  email: string;
-  password: string;
-  full_name: string;
-  user_id?: string;
+interface ResendInvitationRequest {
+  user_id: string;
 }
 
 Deno.serve(async (req) => {
@@ -23,9 +20,36 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { email, password, full_name, user_id }: InvitationRequest = await req.json();
+    const { user_id }: ResendInvitationRequest = await req.json();
 
-    console.log('Sending invitation to:', email);
+    console.log('Resending invitation for user:', user_id);
+
+    // Get user profile
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', user_id)
+      .single();
+
+    if (profileError || !profile) {
+      throw new Error('Пользователь не найден');
+    }
+
+    // Generate new temporary password
+    const newPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase();
+
+    // Update user password using Admin API
+    const { error: updateError } = await supabaseClient.auth.admin.updateUserById(
+      user_id,
+      { password: newPassword }
+    );
+
+    if (updateError) {
+      console.error('Error updating password:', updateError);
+      throw new Error('Не удалось обновить пароль пользователя');
+    }
+
+    console.log('Password updated successfully');
 
     // Get active SMTP settings
     const { data: smtpSettings, error: settingsError } = await supabaseClient
@@ -63,20 +87,26 @@ Deno.serve(async (req) => {
             .credentials { background: #f9f9f9; padding: 15px; border-left: 4px solid #4CAF50; margin: 20px 0; }
             .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
             .button { display: inline-block; padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; }
+            .warning { background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>Добро пожаловать!</h1>
+              <h1>Новое приглашение</h1>
             </div>
             <div class="content">
-              <p>Здравствуйте, ${full_name}!</p>
-              <p>Для вас был создан аккаунт в нашей системе. Используйте следующие учетные данные для входа:</p>
+              <p>Здравствуйте, ${profile.full_name}!</p>
+              
+              <div class="warning">
+                <strong>Внимание:</strong> Ваш пароль был обновлен.
+              </div>
+
+              <p>Для вас были созданы новые учетные данные. Используйте их для входа в систему:</p>
               
               <div class="credentials">
-                <strong>Email:</strong> ${email}<br>
-                <strong>Пароль:</strong> ${password}
+                <strong>Email:</strong> ${profile.email}<br>
+                <strong>Новый пароль:</strong> ${newPassword}
               </div>
 
               <p>Пожалуйста, войдите в систему и смените пароль на более безопасный при первой возможности.</p>
@@ -100,8 +130,8 @@ Deno.serve(async (req) => {
     // Use nodemailer-compatible approach with Deno
     const emailData = {
       from: `${smtpSettings.from_name} <${smtpSettings.from_email}>`,
-      to: email,
-      subject: 'Приглашение в систему',
+      to: profile.email,
+      subject: 'Повторное приглашение в систему',
       html: emailBody,
     };
 
@@ -145,7 +175,7 @@ Deno.serve(async (req) => {
       await tlsConn.read(buffer);
       
       // RCPT TO
-      await tlsConn.write(encoder.encode(`RCPT TO:<${email}>\r\n`));
+      await tlsConn.write(encoder.encode(`RCPT TO:<${profile.email}>\r\n`));
       await tlsConn.read(buffer);
       
       // DATA
@@ -164,22 +194,20 @@ Deno.serve(async (req) => {
     }
 
     // Update invitation_sent_at in profiles
-    if (user_id) {
-      const { error: updateError } = await supabaseClient
-        .from('profiles')
-        .update({ invitation_sent_at: new Date().toISOString() })
-        .eq('id', user_id);
+    const { error: updateInviteError } = await supabaseClient
+      .from('profiles')
+      .update({ invitation_sent_at: new Date().toISOString() })
+      .eq('id', user_id);
 
-      if (updateError) {
-        console.error('Error updating invitation_sent_at:', updateError);
-      }
+    if (updateInviteError) {
+      console.error('Error updating invitation_sent_at:', updateInviteError);
     }
 
     // Log email sending
     const { error: logError } = await supabaseClient
       .from('email_logs')
       .insert([{
-        user_id: user_id || null,
+        user_id: user_id,
         email_type: 'invitation',
         status: 'success',
         error_message: null,
@@ -189,17 +217,17 @@ Deno.serve(async (req) => {
       console.error('Error logging email:', logError);
     }
 
-    console.log('Invitation email sent successfully to:', email);
+    console.log('Resend invitation email sent successfully to:', profile.email);
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Приглашение отправлено' }),
+      JSON.stringify({ success: true, message: 'Приглашение отправлено повторно' }),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       }
     );
   } catch (error: any) {
-    console.error('Error in send-invitation-email:', error);
+    console.error('Error in resend-invitation-email:', error);
 
     return new Response(
       JSON.stringify({ error: error.message }),
