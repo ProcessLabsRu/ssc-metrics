@@ -1045,20 +1045,21 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
             <TableHead>Статус анкеты</TableHead>
             <TableHead>Доступные процессы</TableHead>
             <TableHead>Дата создания</TableHead>
+            <TableHead>Последняя авторизация</TableHead>
             <TableHead className="text-right">Действия</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {loadingUsers ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-8">
+              <TableCell colSpan={10} className="text-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 <p className="text-sm text-muted-foreground mt-2">Загрузка пользователей...</p>
               </TableCell>
             </TableRow>
           ) : users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                 Пользователи не найдены
               </TableCell>
             </TableRow>
@@ -1099,6 +1100,18 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
                   <Badge variant="outline">{user.accessCount}</Badge>
                 </TableCell>
                 <TableCell>{new Date(user.created_at).toLocaleDateString('ru-RU')}</TableCell>
+                <TableCell>
+                  {user.last_sign_in_at 
+                    ? new Date(user.last_sign_in_at).toLocaleDateString('ru-RU', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                    : '-'
+                  }
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex gap-2 justify-end">
                     {!user.last_sign_in_at && (
