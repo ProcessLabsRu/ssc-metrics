@@ -301,6 +301,7 @@ export type Database = {
           header_bg_color: string
           header_text_color: string
           header_title: string
+          help_instructions: string | null
           id: string
           logo_url: string | null
           updated_at: string | null
@@ -310,6 +311,7 @@ export type Database = {
           header_bg_color?: string
           header_text_color?: string
           header_title?: string
+          help_instructions?: string | null
           id?: string
           logo_url?: string | null
           updated_at?: string | null
@@ -319,6 +321,7 @@ export type Database = {
           header_bg_color?: string
           header_text_color?: string
           header_title?: string
+          help_instructions?: string | null
           id?: string
           logo_url?: string | null
           updated_at?: string | null

@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useInterfaceSettings } from "@/hooks/useInterfaceSettings";
-import { Upload, X, Loader2, Palette, Type, Image as ImageIcon } from "lucide-react";
+import { Upload, X, Loader2, Palette, Type, Image as ImageIcon, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 
 const HEADER_THEMES = {
@@ -42,6 +43,7 @@ export const InterfaceSettings = () => {
   const [headerTitle, setHeaderTitle] = useState(settings?.header_title || 'SSC Metrics');
   const [headerBgColor, setHeaderBgColor] = useState(settings?.header_bg_color || 'hsl(var(--card))');
   const [headerTextColor, setHeaderTextColor] = useState(settings?.header_text_color || 'hsl(var(--foreground))');
+  const [helpInstructions, setHelpInstructions] = useState(settings?.help_instructions || '');
   const [logoPreview, setLogoPreview] = useState<string | null>(settings?.logo_url || null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -52,6 +54,7 @@ export const InterfaceSettings = () => {
       setHeaderTitle(settings.header_title);
       setHeaderBgColor(settings.header_bg_color);
       setHeaderTextColor(settings.header_text_color);
+      setHelpInstructions(settings.help_instructions || '');
       setLogoPreview(settings.logo_url);
     }
   });
@@ -98,6 +101,7 @@ export const InterfaceSettings = () => {
         header_title: headerTitle,
         header_bg_color: headerBgColor,
         header_text_color: headerTextColor,
+        help_instructions: helpInstructions,
       });
       setHasChanges(false);
     } catch (error: any) {
@@ -282,6 +286,38 @@ export const InterfaceSettings = () => {
                 </Button>
               ))}
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Help Instructions Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <HelpCircle className="h-5 w-5" />
+            Инструкция для пользователей
+          </CardTitle>
+          <CardDescription>
+            Текст инструкции, который будет отображаться при нажатии на кнопку помощи
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label htmlFor="help-instructions">Текст инструкции</Label>
+            <Textarea
+              id="help-instructions"
+              value={helpInstructions}
+              onChange={(e) => {
+                setHelpInstructions(e.target.value);
+                setHasChanges(true);
+              }}
+              placeholder="Введите инструкцию по работе с системой..."
+              rows={10}
+              className="resize-y"
+            />
+            <p className="text-xs text-muted-foreground">
+              Если инструкция не заполнена, кнопка помощи не будет отображаться
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -8,6 +8,7 @@ export interface UiSettings {
   header_title: string;
   header_bg_color: string;
   header_text_color: string;
+  help_instructions: string | null;
   updated_at: string | null;
   updated_by: string | null;
 }

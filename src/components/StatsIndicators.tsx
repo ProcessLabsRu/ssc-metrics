@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { ListChecks, CheckCircle2, Clock } from "lucide-react";
 import { SubmitButton } from "./SubmitButton";
+import { HelpButton } from "./HelpButton";
 
 export const StatsIndicators = () => {
   const [stats, setStats] = useState({
@@ -136,7 +137,10 @@ export const StatsIndicators = () => {
         </Card>
       </div>
 
-      <SubmitButton totalHours={stats.totalHours} isSubmitted={isSubmitted} onSubmitSuccess={handleSubmitSuccess} />
+      <div className="flex items-center gap-2">
+        <HelpButton />
+        <SubmitButton totalHours={stats.totalHours} isSubmitted={isSubmitted} onSubmitSuccess={handleSubmitSuccess} />
+      </div>
     </div>
   );
 };
