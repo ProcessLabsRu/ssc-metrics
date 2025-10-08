@@ -41,6 +41,30 @@ export type Database = {
         }
         Relationships: []
       }
+      email_templates: {
+        Row: {
+          created_at: string | null
+          html_template: string
+          id: string
+          subject: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          html_template: string
+          id?: string
+          subject: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          html_template?: string
+          id?: string
+          subject?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       process_1: {
         Row: {
           f1_index: string

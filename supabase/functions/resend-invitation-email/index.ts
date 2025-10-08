@@ -74,64 +74,37 @@ Deno.serve(async (req) => {
       throw new Error('SMTP_PASSWORD не настроен');
     }
 
-    // Send email using SMTP
-    const emailBody = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #f4f4f4; padding: 20px; text-align: center; }
-            .content { padding: 20px; background: white; }
-            .credentials { background: #f9f9f9; padding: 15px; border-left: 4px solid #4CAF50; margin: 20px 0; }
-            .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
-            .button { display: inline-block; padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; }
-            .warning { background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Новое приглашение</h1>
-            </div>
-            <div class="content">
-              <p>Здравствуйте, ${profile.full_name}!</p>
-              
-              <div class="warning">
-                <strong>Внимание:</strong> Ваш пароль был обновлен.
-              </div>
+    // Загружаем шаблон письма из БД
+    const { data: templateData, error: templateError } = await supabaseClient
+      .from('email_templates')
+      .select('subject, html_template')
+      .limit(1)
+      .maybeSingle();
 
-              <p>Для вас были созданы новые учетные данные. Используйте их для входа в систему:</p>
-              
-              <div class="credentials">
-                <strong>Email:</strong> ${profile.email}<br>
-                <strong>Новый пароль:</strong> ${newPassword}
-              </div>
+    if (templateError) {
+      console.error('Error loading email template:', templateError);
+      throw new Error('Failed to load email template');
+    }
 
-              <p>Пожалуйста, войдите в систему и смените пароль на более безопасный при первой возможности.</p>
-              
-              <p style="text-align: center; margin: 30px 0;">
-                <a href="${Deno.env.get('SUPABASE_URL')?.replace('https://bpnzpiileyneehtihivc.supabase.co', 'https://id-preview--ec885cf1-8926-457e-a564-71a22dfaa5a2.lovable.app')}/auth" class="button">
-                  Войти в систему
-                </a>
-              </p>
+    if (!templateData) {
+      throw new Error('Email template not found');
+    }
 
-              <p>Если у вас возникли вопросы, свяжитесь с администратором.</p>
-            </div>
-            <div class="footer">
-              <p>Это автоматическое письмо, пожалуйста, не отвечайте на него.</p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
+    // Заменяем переменные в шаблоне
+    const loginUrl = `${Deno.env.get('SUPABASE_URL')?.replace('https://bpnzpiileyneehtihivc.supabase.co', 'https://id-preview--ec885cf1-8926-457e-a564-71a22dfaa5a2.lovable.app')}/auth`;
+    const emailBody = templateData.html_template
+      .replace(/\{\{full_name\}\}/g, profile.full_name || profile.email)
+      .replace(/\{\{email\}\}/g, profile.email)
+      .replace(/\{\{password\}\}/g, newPassword)
+      .replace(/\{\{login_url\}\}/g, loginUrl);
+
+    const emailSubject = templateData.subject;
 
     // Use nodemailer-compatible approach with Deno
     const emailData = {
       from: `${smtpSettings.from_name} <${smtpSettings.from_email}>`,
       to: profile.email,
-      subject: 'Повторное приглашение в систему',
+      subject: emailSubject,
       html: emailBody,
     };
 
