@@ -45,6 +45,7 @@ import { UserPlus, Loader2, RefreshCw, Trash2, Mail, Upload, Download, X } from 
 interface UserWithRoles extends Profile {
   roles: string[];
   accessCount: number;
+  accessProcesses: string[]; // список f1_index
   invitation_sent_at: string | null;
   last_sign_in_at: string | null;
   questionnaire_completed: boolean;
@@ -113,16 +114,17 @@ export const UserManagement = () => {
             .select('role')
             .eq('user_id', profile.id);
 
-          // Загружаем количество доступных процессов
-          const { count: accessCount } = await supabase
+          // Загружаем доступные процессы
+          const { data: userAccess, count: accessCount } = await supabase
             .from('user_access')
-            .select('*', { count: 'exact', head: true })
+            .select('f1_index', { count: 'exact' })
             .eq('user_id', profile.id);
 
           return {
             ...profile,
             roles: userRoles?.map(r => r.role) || [],
             accessCount: accessCount || 0,
+            accessProcesses: userAccess?.map(a => a.f1_index) || [],
             invitation_sent_at: profile.invitation_sent_at,
             last_sign_in_at: profile.last_sign_in_at,
             questionnaire_completed: profile.questionnaire_completed || false,
@@ -1097,7 +1099,11 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
                 <TableCell>{getStatusBadge(user)}</TableCell>
                 <TableCell>{getQuestionnaireBadge(user)}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{user.accessCount}</Badge>
+                  <div className="text-sm">
+                    {user.accessProcesses.length > 0 
+                      ? user.accessProcesses.join(', ') 
+                      : '-'}
+                  </div>
                 </TableCell>
                 <TableCell>{new Date(user.created_at).toLocaleDateString('ru-RU')}</TableCell>
                 <TableCell>
