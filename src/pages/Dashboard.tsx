@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ProcessTree } from '@/components/ProcessTree';
 import { ResponsesTable } from '@/components/ResponsesTable';
 import { Header } from '@/components/Header';
+import { StatsIndicators } from '@/components/StatsIndicators';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 
 const Dashboard = () => {
@@ -33,6 +34,10 @@ const Dashboard = () => {
         isAdmin={isAdmin} 
         onSignOut={signOut} 
       />
+
+      <div className="border-b bg-card/50 px-4 py-3">
+        <StatsIndicators />
+      </div>
 
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal">

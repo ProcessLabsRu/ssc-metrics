@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogOut, Shield, User } from "lucide-react";
-import { StatsIndicators } from "./StatsIndicators";
 import { useInterfaceSettings } from "@/hooks/useInterfaceSettings";
 
 interface HeaderProps {
@@ -28,7 +27,7 @@ export const Header = ({ userProfile, isAdmin, onSignOut }: HeaderProps) => {
       }}
     >
       <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             {settings?.logo_url ? (
               <img 
@@ -45,26 +44,47 @@ export const Header = ({ userProfile, isAdmin, onSignOut }: HeaderProps) => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md">
-              <User className="h-4 w-4 text-muted-foreground" />
+            <div 
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md"
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                color: settings?.header_text_color || 'hsl(var(--foreground))'
+              }}
+            >
+              <User className="h-4 w-4" style={{ color: 'currentColor' }} />
               <span className="text-sm font-medium">{displayName}</span>
             </div>
 
             {isAdmin && (
-              <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => navigate("/admin")}
+                style={{
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: settings?.header_text_color || 'currentColor',
+                  color: settings?.header_text_color || 'currentColor'
+                }}
+              >
                 <Shield className="mr-2 h-4 w-4" />
                 Админ панель
               </Button>
             )}
 
-            <Button variant="ghost" size="sm" onClick={onSignOut}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onSignOut}
+              style={{
+                color: settings?.header_text_color || 'currentColor'
+              }}
+            >
               <LogOut className="mr-2 h-4 w-4" />
               Выход
             </Button>
           </div>
         </div>
-
-        <StatsIndicators />
       </div>
     </header>
   );
