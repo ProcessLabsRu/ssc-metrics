@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { UserManagement } from '@/components/admin/UserManagement';
 import { SmtpSettings } from '@/components/admin/SmtpSettings';
 import { EmailTemplates } from '@/components/admin/EmailTemplates';
+import { InterfaceSettings } from '@/components/admin/InterfaceSettings';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Users, Mail, FileText } from 'lucide-react';
+import { LogOut, Users, Mail, FileText, Palette } from 'lucide-react';
 
 const Admin = () => {
   const { user, isAdmin, loading, signOut } = useAuth();
@@ -60,7 +61,7 @@ const Admin = () => {
       </header>
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full max-w-2xl grid-cols-3">
+          <TabsList className="grid w-full max-w-3xl grid-cols-4">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Пользователи
@@ -73,6 +74,10 @@ const Admin = () => {
               <FileText className="h-4 w-4" />
               Шаблон письма
             </TabsTrigger>
+            <TabsTrigger value="interface" className="flex items-center gap-2">
+              <Palette className="h-4 w-4" />
+              Интерфейс
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="users" className="mt-6">
             <UserManagement />
@@ -82,6 +87,9 @@ const Admin = () => {
           </TabsContent>
           <TabsContent value="templates" className="mt-6">
             <EmailTemplates />
+          </TabsContent>
+          <TabsContent value="interface" className="mt-6">
+            <InterfaceSettings />
           </TabsContent>
         </Tabs>
       </main>

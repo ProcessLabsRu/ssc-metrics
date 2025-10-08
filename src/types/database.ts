@@ -78,3 +78,13 @@ export interface UserAccess {
   f1_index: string;
   created_at: string;
 }
+
+export interface UiSettings {
+  id: string;
+  logo_url: string | null;
+  header_title: string;
+  header_bg_color: string;
+  header_text_color: string;
+  updated_at: string | null;
+  updated_by: string | null;
+}

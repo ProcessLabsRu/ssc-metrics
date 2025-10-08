@@ -296,6 +296,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ui_settings: {
+        Row: {
+          header_bg_color: string
+          header_text_color: string
+          header_title: string
+          id: string
+          logo_url: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          header_bg_color?: string
+          header_text_color?: string
+          header_title?: string
+          id?: string
+          logo_url?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          header_bg_color?: string
+          header_text_color?: string
+          header_title?: string
+          id?: string
+          logo_url?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       user_access: {
         Row: {
           created_at: string | null
