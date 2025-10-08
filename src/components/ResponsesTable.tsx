@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Process4, System, UserResponse } from '@/types/database';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, MessageSquareText, Lock, Send } from 'lucide-react';
+import { MessageSquare, MessageSquareText, Lock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -12,16 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -55,8 +45,6 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
   const [loading, setLoading] = useState(false);
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<{ responseId: number; note: string } | null>(null);
-  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submittedAt, setSubmittedAt] = useState<string | null>(null);
   const { toast } = useToast();
@@ -282,44 +270,6 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
     pendingChangesRef.current.set(responseId, changes);
   };
 
-  const handleSubmit = async () => {
-    // Save any pending changes first
-    if (pendingChangesRef.current.size > 0) {
-      await savePendingChanges();
-    }
-
-    setSubmitting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('submit-user-responses');
-
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || 'Submission failed');
-
-      toast({
-        title: "Данные отправлены",
-        description: "Ваши данные успешно сохранены и заблокированы для редактирования",
-      });
-
-      setIsSubmitted(true);
-      setSubmittedAt(data.submitted_at);
-      setSubmitDialogOpen(false);
-      
-      // Reload to reflect submission status
-      loadResponses();
-      
-      if (onDataChange) {
-        onDataChange();
-      }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Ошибка отправки",
-        description: error.message,
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const openNoteDialog = (responseId: number, currentNote: string | null) => {
     setEditingNote({ responseId, note: currentNote || '' });
@@ -363,17 +313,6 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
               {new Date(submittedAt).toLocaleString('ru-RU')}
             </span>
           </div>
-        </div>
-      )}
-      {!isSubmitted && (
-        <div className="border-b bg-background px-4 py-3">
-          <Button 
-            onClick={() => setSubmitDialogOpen(true)}
-            className="w-full sm:w-auto"
-          >
-            <Send className="mr-2 h-4 w-4" />
-            Отправить данные
-          </Button>
         </div>
       )}
       <div className="flex-1 overflow-auto">
@@ -491,23 +430,6 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Подтвердите отправку данных</AlertDialogTitle>
-            <AlertDialogDescription>
-              После отправки данные будут сохранены в базе и заблокированы для редактирования. 
-              Вы не сможете изменить их в дальнейшем. Продолжить?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={submitting}>Отмена</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSubmit} disabled={submitting}>
-              {submitting ? 'Отправка...' : 'Подтвердить отправку'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
