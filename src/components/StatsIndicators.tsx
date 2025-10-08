@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Card } from '@/components/ui/card';
-import { ListChecks, CheckCircle2, Clock } from 'lucide-react';
-import { SubmitButton } from './SubmitButton';
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { ListChecks, CheckCircle2, Clock } from "lucide-react";
+import { SubmitButton } from "./SubmitButton";
 
 export const StatsIndicators = () => {
   const [stats, setStats] = useState({
@@ -18,33 +18,33 @@ export const StatsIndicators = () => {
 
     // Subscribe to real-time updates for user_responses
     const responsesChannel = supabase
-      .channel('stats-updates')
+      .channel("stats-updates")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'user_responses',
+          event: "*",
+          schema: "public",
+          table: "user_responses",
         },
         () => {
           loadStats();
-        }
+        },
       )
       .subscribe();
 
     // Subscribe to real-time updates for profiles
     const profilesChannel = supabase
-      .channel('profile-updates')
+      .channel("profile-updates")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'profiles',
+          event: "*",
+          schema: "public",
+          table: "profiles",
         },
         () => {
           loadSubmissionStatus();
-        }
+        },
       )
       .subscribe();
 
@@ -55,20 +55,20 @@ export const StatsIndicators = () => {
   }, []);
 
   const loadStats = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
 
     const { data } = await supabase
-      .from('user_responses')
-      .select('f4_index, system_id, notes, labor_hours')
-      .eq('user_id', user.id);
+      .from("user_responses")
+      .select("f4_index, system_id, notes, labor_hours")
+      .eq("user_id", user.id);
 
     if (!data) return;
 
     const totalAvailable = data.length;
-    const filled = data.filter(
-      (r) => r.labor_hours !== null && r.labor_hours > 0
-    ).length;
+    const filled = data.filter((r) => r.labor_hours !== null && r.labor_hours > 0).length;
     const totalHours = data.reduce((sum, r) => sum + (r.labor_hours || 0), 0);
 
     setStats({
@@ -79,14 +79,12 @@ export const StatsIndicators = () => {
   };
 
   const loadSubmissionStatus = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data } = await supabase
-      .from('profiles')
-      .select('questionnaire_completed')
-      .eq('id', user.id)
-      .single();
+    const { data } = await supabase.from("profiles").select("questionnaire_completed").eq("id", user.id).single();
 
     if (data) {
       setIsSubmitted(data.questionnaire_completed || false);
@@ -105,7 +103,7 @@ export const StatsIndicators = () => {
           <div className="flex items-center gap-2">
             <ListChecks className="h-5 w-5 text-blue-500" />
             <div>
-              <div className="text-xs text-muted-foreground">Доступно</div>
+              <div className="text-xs text-muted-foreground">Доступно для заполнения</div>
               <div className="text-lg font-bold">{stats.totalAvailable}</div>
             </div>
           </div>
@@ -132,11 +130,7 @@ export const StatsIndicators = () => {
         </Card>
       </div>
 
-      <SubmitButton 
-        totalHours={stats.totalHours}
-        isSubmitted={isSubmitted}
-        onSubmitSuccess={handleSubmitSuccess}
-      />
+      <SubmitButton totalHours={stats.totalHours} isSubmitted={isSubmitted} onSubmitSuccess={handleSubmitSuccess} />
     </div>
   );
 };
