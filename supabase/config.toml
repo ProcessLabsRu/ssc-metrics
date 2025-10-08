@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.submit-user-responses]
 verify_jwt = true
+
+[functions.bulk-create-users]
+verify_jwt = true

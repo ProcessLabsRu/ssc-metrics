@@ -40,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { UserPlus, Loader2, RefreshCw, Trash2, Mail } from 'lucide-react';
+import { UserPlus, Loader2, RefreshCw, Trash2, Mail, Upload, Download } from 'lucide-react';
 
 interface UserWithRoles extends Profile {
   roles: string[];
@@ -59,6 +59,15 @@ export const UserManagement = () => {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [csvData, setCsvData] = useState<any[]>([]);
+  const [validationResults, setValidationResults] = useState<{
+    valid: any[];
+    duplicates: any[];
+    errors: any[];
+  }>({ valid: [], duplicates: [], errors: [] });
+  const [bulkResults, setBulkResults] = useState<any>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -368,18 +377,364 @@ export const UserManagement = () => {
     );
   };
 
+  const downloadTemplate = () => {
+    const template = `email,full_name,processes
+example1@company.com,Иван Иванов,"1.1,1.2"
+example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
+    
+    const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'template_users.csv';
+    link.click();
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        toast({
+          variant: "destructive",
+          title: "Ошибка",
+          description: "Файл пуст или содержит только заголовки",
+        });
+        return;
+      }
+
+      // Parse CSV
+      const headers = lines[0].split(',').map(h => h.trim());
+      const data = lines.slice(1).map(line => {
+        const values = parseCSVLine(line);
+        const row: any = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index]?.trim() || '';
+        });
+        return row;
+      });
+
+      // Validate data
+      const valid: any[] = [];
+      const errors: any[] = [];
+      const validProcessIds = new Set(processes.map(p => p.f1_index));
+
+      // Get existing emails
+      const { data: existingProfiles } = await supabase
+        .from('profiles')
+        .select('email');
+      const existingEmails = new Set(existingProfiles?.map(p => p.email.toLowerCase()) || []);
+
+      const duplicates: any[] = [];
+
+      for (const row of data) {
+        const email = row.email?.toLowerCase().trim();
+        let hasError = false;
+        let errorMsg = '';
+
+        // Validate email
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          errorMsg = 'Неверный формат email';
+          hasError = true;
+        } else if (existingEmails.has(email)) {
+          duplicates.push({ ...row, reason: 'Email уже существует' });
+          continue;
+        }
+
+        // Validate processes
+        const processesStr = row.processes?.replace(/"/g, '').trim();
+        const processArr = processesStr ? processesStr.split(',').map((p: string) => p.trim()) : [];
+        
+        if (processArr.length === 0) {
+          errorMsg = 'Не указаны процессы';
+          hasError = true;
+        } else {
+          const invalidProcesses = processArr.filter((p: string) => !validProcessIds.has(p));
+          if (invalidProcesses.length > 0) {
+            errorMsg = `Неверные процессы: ${invalidProcesses.join(', ')}`;
+            hasError = true;
+          }
+        }
+
+        if (hasError) {
+          errors.push({ ...row, error: errorMsg });
+        } else {
+          valid.push({
+            email,
+            full_name: row.full_name || email,
+            processes: processArr,
+          });
+        }
+      }
+
+      setCsvData(data);
+      setValidationResults({ valid, duplicates, errors });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Ошибка чтения файла",
+        description: error.message,
+      });
+    }
+  };
+
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current);
+    return result;
+  };
+
+  const handleBulkImport = async () => {
+    if (validationResults.valid.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Нет данных",
+        description: "Нет валидных записей для импорта",
+      });
+      return;
+    }
+
+    setBulkLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-create-users', {
+        body: {
+          users: validationResults.valid,
+          send_invitations: true,
+        },
+      });
+
+      if (error) throw error;
+
+      setBulkResults(data);
+      
+      toast({
+        title: "Импорт завершен",
+        description: `Создано пользователей: ${data.summary.created}, Ошибок: ${data.summary.errors}`,
+      });
+
+      loadUsers();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Ошибка импорта",
+        description: error.message,
+      });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const downloadResults = () => {
+    if (!bulkResults) return;
+
+    const lines = ['email,password,status,full_name'];
+    
+    bulkResults.results.created.forEach((r: any) => {
+      lines.push(`${r.email},${r.password},created,"${r.full_name || ''}"`);
+    });
+    
+    bulkResults.results.duplicates.forEach((r: any) => {
+      lines.push(`${r.email},,duplicate,""`);
+    });
+    
+    bulkResults.results.errors.forEach((r: any) => {
+      lines.push(`${r.email},,error,"${r.error}"`);
+    });
+
+    const csv = lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'import_results.csv';
+    link.click();
+  };
+
+  const resetBulkUpload = () => {
+    setCsvData([]);
+    setValidationResults({ valid: [], duplicates: [], errors: [] });
+    setBulkResults(null);
+    setBulkUploadOpen(false);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Управление пользователями</h2>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Создать пользователя
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <div className="flex gap-2">
+          <Dialog open={bulkUploadOpen} onOpenChange={(open) => {
+            if (!open) resetBulkUpload();
+            setBulkUploadOpen(open);
+          }}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Upload className="mr-2 h-4 w-4" />
+                Массовая загрузка
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Массовая загрузка пользователей</DialogTitle>
+                <DialogDescription>
+                  Загрузите CSV файл с пользователями (роль user назначается автоматически)
+                </DialogDescription>
+              </DialogHeader>
+              
+              {!bulkResults ? (
+                <div className="space-y-4">
+                  <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                    <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <div className="space-y-2">
+                      <Label htmlFor="csv-file" className="cursor-pointer">
+                        <div className="text-sm text-muted-foreground mb-2">
+                          Перетащите CSV файл или нажмите для выбора
+                        </div>
+                        <Button type="button" variant="secondary">
+                          Выберите файл
+                        </Button>
+                      </Label>
+                      <Input
+                        id="csv-file"
+                        type="file"
+                        accept=".csv"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        disabled={bulkLoading}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-muted p-4 rounded-lg">
+                    <div className="text-sm font-medium mb-2">ℹ️ Формат CSV:</div>
+                    <code className="text-xs">email,full_name,processes</code>
+                    <div className="text-xs text-muted-foreground mt-2">
+                      Процессы указываются через запятую в кавычках: "1.1,1.2,1.3"
+                    </div>
+                  </div>
+
+                  {validationResults.valid.length > 0 || validationResults.duplicates.length > 0 || validationResults.errors.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="bg-green-50 p-4 rounded-lg">
+                          <div className="text-sm font-medium text-green-900">✅ Валидные</div>
+                          <div className="text-2xl font-bold text-green-700">{validationResults.valid.length}</div>
+                        </div>
+                        <div className="bg-yellow-50 p-4 rounded-lg">
+                          <div className="text-sm font-medium text-yellow-900">⚠️ Дубликаты</div>
+                          <div className="text-2xl font-bold text-yellow-700">{validationResults.duplicates.length}</div>
+                        </div>
+                        <div className="bg-red-50 p-4 rounded-lg">
+                          <div className="text-sm font-medium text-red-900">❌ Ошибки</div>
+                          <div className="text-2xl font-bold text-red-700">{validationResults.errors.length}</div>
+                        </div>
+                      </div>
+
+                      {validationResults.duplicates.length > 0 && (
+                        <div className="border rounded-lg p-4">
+                          <h4 className="font-medium mb-2">Дубликаты (будут пропущены):</h4>
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {validationResults.duplicates.map((dup, idx) => (
+                              <div key={idx} className="text-sm text-muted-foreground">
+                                {dup.email} - {dup.reason}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {validationResults.errors.length > 0 && (
+                        <div className="border rounded-lg p-4">
+                          <h4 className="font-medium mb-2">Ошибки валидации:</h4>
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {validationResults.errors.map((err, idx) => (
+                              <div key={idx} className="text-sm text-destructive">
+                                {err.email} - {err.error}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleBulkImport}
+                          disabled={bulkLoading || validationResults.valid.length === 0}
+                          className="flex-1"
+                        >
+                          {bulkLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Импорт... ({validationResults.valid.length})
+                            </>
+                          ) : (
+                            <>Импортировать {validationResults.valid.length} пользователей</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button onClick={downloadTemplate} variant="outline" className="w-full">
+                      <Download className="mr-2 h-4 w-4" />
+                      Скачать шаблон CSV
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="text-sm font-medium text-green-900">✅ Создано</div>
+                      <div className="text-2xl font-bold text-green-700">{bulkResults.summary.created}</div>
+                    </div>
+                    <div className="bg-yellow-50 p-4 rounded-lg">
+                      <div className="text-sm font-medium text-yellow-900">⚠️ Пропущено</div>
+                      <div className="text-2xl font-bold text-yellow-700">{bulkResults.summary.duplicates}</div>
+                    </div>
+                    <div className="bg-red-50 p-4 rounded-lg">
+                      <div className="text-sm font-medium text-red-900">❌ Ошибки</div>
+                      <div className="text-2xl font-bold text-red-700">{bulkResults.summary.errors}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={downloadResults} variant="outline" className="flex-1">
+                      <Download className="mr-2 h-4 w-4" />
+                      Скачать отчет с паролями
+                    </Button>
+                    <Button onClick={resetBulkUpload} className="flex-1">
+                      Закрыть
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Создать пользователя
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Создание нового пользователя</DialogTitle>
               <DialogDescription>
@@ -496,6 +851,7 @@ export const UserManagement = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Table>
