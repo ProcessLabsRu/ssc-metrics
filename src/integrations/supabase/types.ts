@@ -181,6 +181,8 @@ export type Database = {
           id: string
           invitation_sent_at: string | null
           last_sign_in_at: string | null
+          questionnaire_completed: boolean | null
+          questionnaire_completed_at: string | null
           updated_at: string | null
         }
         Insert: {
@@ -190,6 +192,8 @@ export type Database = {
           id: string
           invitation_sent_at?: string | null
           last_sign_in_at?: string | null
+          questionnaire_completed?: boolean | null
+          questionnaire_completed_at?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -199,6 +203,8 @@ export type Database = {
           id?: string
           invitation_sent_at?: string | null
           last_sign_in_at?: string | null
+          questionnaire_completed?: boolean | null
+          questionnaire_completed_at?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -300,8 +306,10 @@ export type Database = {
           created_at: string
           f4_index: string | null
           id: number
+          is_submitted: boolean | null
           labor_hours: number | null
           notes: string | null
+          submitted_at: string | null
           system_id: number | null
           user_id: string | null
         }
@@ -309,8 +317,10 @@ export type Database = {
           created_at?: string
           f4_index?: string | null
           id?: number
+          is_submitted?: boolean | null
           labor_hours?: number | null
           notes?: string | null
+          submitted_at?: string | null
           system_id?: number | null
           user_id?: string | null
         }
@@ -318,8 +328,10 @@ export type Database = {
           created_at?: string
           f4_index?: string | null
           id?: number
+          is_submitted?: boolean | null
           labor_hours?: number | null
           notes?: string | null
+          submitted_at?: string | null
           system_id?: number | null
           user_id?: string | null
         }

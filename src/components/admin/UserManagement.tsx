@@ -47,6 +47,8 @@ interface UserWithRoles extends Profile {
   accessCount: number;
   invitation_sent_at: string | null;
   last_sign_in_at: string | null;
+  questionnaire_completed: boolean;
+  questionnaire_completed_at: string | null;
 }
 
 export const UserManagement = () => {
@@ -106,6 +108,8 @@ export const UserManagement = () => {
             accessCount: accessCount || 0,
             invitation_sent_at: profile.invitation_sent_at,
             last_sign_in_at: profile.last_sign_in_at,
+            questionnaire_completed: profile.questionnaire_completed || false,
+            questionnaire_completed_at: profile.questionnaire_completed_at,
           };
         })
       );
@@ -341,6 +345,29 @@ export const UserManagement = () => {
     );
   };
 
+  const getQuestionnaireBadge = (user: UserWithRoles) => {
+    if (user.questionnaire_completed) {
+      return (
+        <Badge variant="default" className="bg-green-500">
+          ✅ Завершена
+        </Badge>
+      );
+    }
+    // Check if user has any responses (in progress)
+    if (user.accessCount > 0) {
+      return (
+        <Badge variant="secondary">
+          ⏳ В процессе
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline">
+        ❌ Не начата
+      </Badge>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -478,6 +505,7 @@ export const UserManagement = () => {
             <TableHead>Имя</TableHead>
             <TableHead>Роли</TableHead>
             <TableHead>Статус</TableHead>
+            <TableHead>Статус анкеты</TableHead>
             <TableHead>Доступные процессы</TableHead>
             <TableHead>Дата создания</TableHead>
             <TableHead className="text-right">Действия</TableHead>
@@ -486,14 +514,14 @@ export const UserManagement = () => {
         <TableBody>
           {loadingUsers ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-8">
+              <TableCell colSpan={8} className="text-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 <p className="text-sm text-muted-foreground mt-2">Загрузка пользователей...</p>
               </TableCell>
             </TableRow>
           ) : users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                 Пользователи не найдены
               </TableCell>
             </TableRow>
@@ -520,6 +548,7 @@ export const UserManagement = () => {
                   </div>
                 </TableCell>
                 <TableCell>{getStatusBadge(user)}</TableCell>
+                <TableCell>{getQuestionnaireBadge(user)}</TableCell>
                 <TableCell>
                   <Badge variant="outline">{user.accessCount}</Badge>
                 </TableCell>

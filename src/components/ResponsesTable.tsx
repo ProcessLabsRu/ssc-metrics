@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Process4, System, UserResponse } from '@/types/database';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, MessageSquareText } from 'lucide-react';
+import { MessageSquare, MessageSquareText, Lock, Send } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -45,6 +55,10 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
   const [loading, setLoading] = useState(false);
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<{ responseId: number; note: string } | null>(null);
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submittedAt, setSubmittedAt] = useState<string | null>(null);
   const { toast } = useToast();
   const pendingChangesRef = useRef<Map<number, { field: string; value: any }[]>>(new Map());
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
@@ -145,6 +159,16 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
       });
 
       setRows(combined);
+
+      // Check if any response is submitted
+      const anySubmitted = responsesData?.some(r => r.is_submitted) || false;
+      setIsSubmitted(anySubmitted);
+      
+      // Get submission date from first submitted response
+      if (anySubmitted) {
+        const submittedResponse = responsesData?.find(r => r.submitted_at);
+        setSubmittedAt(submittedResponse?.submitted_at || null);
+      }
     } catch (error) {
       console.error('Error loading responses:', error);
     } finally {
@@ -216,6 +240,16 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
   };
 
   const updateResponse = (responseId: number, field: 'system_id' | 'notes' | 'labor_hours', value: any) => {
+    // Prevent editing if submitted
+    if (isSubmitted) {
+      toast({
+        variant: "destructive",
+        title: "Редактирование невозможно",
+        description: "Данные заблокированы после отправки",
+      });
+      return;
+    }
+
     // Validate labor_hours
     if (field === 'labor_hours') {
       const numValue = parseFloat(value);
@@ -248,6 +282,45 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
     pendingChangesRef.current.set(responseId, changes);
   };
 
+  const handleSubmit = async () => {
+    // Save any pending changes first
+    if (pendingChangesRef.current.size > 0) {
+      await savePendingChanges();
+    }
+
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-user-responses');
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Submission failed');
+
+      toast({
+        title: "Данные отправлены",
+        description: "Ваши данные успешно сохранены и заблокированы для редактирования",
+      });
+
+      setIsSubmitted(true);
+      setSubmittedAt(data.submitted_at);
+      setSubmitDialogOpen(false);
+      
+      // Reload to reflect submission status
+      loadResponses();
+      
+      if (onDataChange) {
+        onDataChange();
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Ошибка отправки",
+        description: error.message,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const openNoteDialog = (responseId: number, currentNote: string | null) => {
     setEditingNote({ responseId, note: currentNote || '' });
     setNoteDialogOpen(true);
@@ -278,8 +351,33 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
   }
 
   return (
-    <div className="h-full overflow-auto">
-      <Table>
+    <div className="h-full flex flex-col">
+      {isSubmitted && submittedAt && (
+        <div className="bg-green-50 dark:bg-green-950 border-b border-green-200 dark:border-green-800 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Lock className="h-4 w-4 text-green-700 dark:text-green-300" />
+            <span className="text-sm font-medium text-green-900 dark:text-green-100">
+              Данные отправлены и заблокированы
+            </span>
+            <span className="text-xs text-green-700 dark:text-green-300">
+              {new Date(submittedAt).toLocaleString('ru-RU')}
+            </span>
+          </div>
+        </div>
+      )}
+      {!isSubmitted && (
+        <div className="border-b bg-background px-4 py-3">
+          <Button 
+            onClick={() => setSubmitDialogOpen(true)}
+            className="w-full sm:w-auto"
+          >
+            <Send className="mr-2 h-4 w-4" />
+            Отправить данные
+          </Button>
+        </div>
+      )}
+      <div className="flex-1 overflow-auto">
+        <Table>
         <TableHeader className="sticky top-0 bg-[hsl(var(--table-header))] z-10">
           <TableRow>
             <TableHead className="w-[50px]">№</TableHead>
@@ -291,10 +389,16 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
         </TableHeader>
         <TableBody>
           {rows.map((row, index) => (
-            <TableRow key={row.process4.f4_index}>
+            <TableRow 
+              key={row.process4.f4_index}
+              className={isSubmitted ? 'bg-muted/30' : ''}
+            >
               <TableCell>{index + 1}</TableCell>
               <TableCell className={`font-medium ${row.response.labor_hours && row.response.labor_hours > 0 ? 'text-green-700' : ''}`}>
-                {row.process4.f4_name}
+                <div className="flex items-center gap-2">
+                  {isSubmitted && <Lock className="h-3 w-3 text-muted-foreground" />}
+                  {row.process4.f4_name}
+                </div>
               </TableCell>
               <TableCell className="p-0">
                 <Select
@@ -302,8 +406,13 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
                   onValueChange={(value) => 
                     updateResponse(row.response.id, 'system_id', value ? parseInt(value) : null)
                   }
+                  disabled={isSubmitted}
                 >
-                  <SelectTrigger className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus:bg-accent/50 text-sm shadow-none">
+                  <SelectTrigger 
+                    className={`w-full h-full border-0 rounded-none bg-transparent text-sm shadow-none ${
+                      !isSubmitted ? 'hover:bg-accent/30 focus:bg-accent/50' : 'cursor-not-allowed'
+                    }`}
+                  >
                     <SelectValue placeholder="Выберите систему" />
                   </SelectTrigger>
                   <SelectContent>
@@ -323,7 +432,10 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
                   max="250"
                   value={row.response.labor_hours ?? 0}
                   onChange={(e) => updateResponse(row.response.id, 'labor_hours', e.target.value)}
-                  className="w-full h-full border-0 rounded-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/50 focus-visible:outline-none text-sm px-2 py-2"
+                  disabled={isSubmitted}
+                  className={`w-full h-full border-0 rounded-none bg-transparent focus-visible:outline-none text-sm px-2 py-2 ${
+                    !isSubmitted ? 'hover:bg-accent/30 focus-visible:bg-accent/50' : 'cursor-not-allowed'
+                  }`}
                 />
               </TableCell>
               <TableCell className="text-center">
@@ -332,6 +444,7 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
                   size="icon"
                   className="h-8 w-8"
                   onClick={() => openNoteDialog(row.response.id, row.response.notes)}
+                  disabled={isSubmitted}
                 >
                   {row.response.notes && row.response.notes.length > 1 ? (
                     <MessageSquareText className="h-4 w-4 text-green-700" />
@@ -344,13 +457,14 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
           ))}
         </TableBody>
       </Table>
+      </div>
 
       <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Примечание</DialogTitle>
             <DialogDescription>
-              Добавьте примечание к процессу
+              {isSubmitted ? 'Просмотр примечания' : 'Добавьте примечание к процессу'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -361,18 +475,39 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
               )}
               placeholder="Введите примечание..."
               className="min-h-[150px]"
+              disabled={isSubmitted}
             />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNoteDialogOpen(false)}>
-              Отмена
+              {isSubmitted ? 'Закрыть' : 'Отмена'}
             </Button>
-            <Button onClick={saveNote}>
-              Сохранить
-            </Button>
+            {!isSubmitted && (
+              <Button onClick={saveNote}>
+                Сохранить
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Подтвердите отправку данных</AlertDialogTitle>
+            <AlertDialogDescription>
+              После отправки данные будут сохранены в базе и заблокированы для редактирования. 
+              Вы не сможете изменить их в дальнейшем. Продолжить?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSubmit} disabled={submitting}>
+              {submitting ? 'Отправка...' : 'Подтвердить отправку'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

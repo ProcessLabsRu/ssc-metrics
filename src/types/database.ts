@@ -50,6 +50,8 @@ export interface UserResponse {
   notes: string | null;
   labor_hours: number | null;
   created_at: string;
+  is_submitted?: boolean;
+  submitted_at?: string | null;
 }
 
 export interface Profile {
@@ -58,6 +60,10 @@ export interface Profile {
   full_name: string | null;
   created_at: string;
   updated_at: string;
+  invitation_sent_at?: string | null;
+  last_sign_in_at?: string | null;
+  questionnaire_completed?: boolean;
+  questionnaire_completed_at?: string | null;
 }
 
 export interface UserRole {

@@ -14,3 +14,6 @@ verify_jwt = true
 
 [functions.delete-user-admin]
 verify_jwt = true
+
+[functions.submit-user-responses]
+verify_jwt = true
