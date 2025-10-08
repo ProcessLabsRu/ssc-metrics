@@ -123,7 +123,7 @@ export const StatsIndicators = () => {
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-orange-500" />
             <div>
-              <div className="text-xs text-muted-foreground">Человеко-часов</div>
+              <div className="text-xs text-muted-foreground">Внесено человеко-часов</div>
               <div className="text-lg font-bold">{stats.totalHours.toFixed(2)}</div>
             </div>
           </div>
