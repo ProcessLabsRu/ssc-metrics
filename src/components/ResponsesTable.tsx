@@ -352,7 +352,7 @@ export const ResponsesTable = ({ selectedF3Index, onDataChange }: ResponsesTable
                       !isSubmitted ? 'hover:bg-accent/30 focus:bg-accent/50' : 'cursor-not-allowed'
                     }`}
                   >
-                    <SelectValue placeholder="Выберите систему" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {systems.map((system) => (
