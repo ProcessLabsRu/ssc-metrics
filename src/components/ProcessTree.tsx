@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { ChevronRight, ChevronDown, Folder, FileText } from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, FileText, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Process1, Process2, Process3 } from '@/types/database';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface ProcessTreeProps {
   onSelectProcess: (f3Index: string | null) => void;
@@ -168,13 +169,48 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess, refreshTrigger }
     setExpanded2(newExpanded);
   };
 
+  const expandAll = () => {
+    setExpanded1(new Set(treeData.map(node => node.f1.f1_index)));
+    const allF2Indices = treeData.flatMap(node1 => 
+      node1.children2.map(node2 => node2.f2.f2_index)
+    );
+    setExpanded2(new Set(allF2Indices));
+  };
+
+  const collapseAll = () => {
+    setExpanded1(new Set());
+    setExpanded2(new Set());
+  };
+
   if (loading) {
     return <div className="p-4 text-muted-foreground">Загрузка...</div>;
   }
 
   return (
-    <div className="p-4 space-y-1">
-      {treeData.map((node1) => (
+    <div className="p-4 space-y-2">
+      <div className="flex items-center gap-2 pb-2 border-b">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={expandAll}
+          className="text-xs"
+        >
+          <ChevronsDown className="h-3 w-3 mr-1" />
+          Развернуть всё
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={collapseAll}
+          className="text-xs"
+        >
+          <ChevronsUp className="h-3 w-3 mr-1" />
+          Свернуть всё
+        </Button>
+      </div>
+      
+      <div className="space-y-1">
+        {treeData.map((node1) => (
         <div key={node1.f1.f1_index}>
           <button
             onClick={() => toggleExpand1(node1.f1.f1_index)}
@@ -231,6 +267,7 @@ export const ProcessTree = ({ onSelectProcess, selectedProcess, refreshTrigger }
           )}
         </div>
       ))}
+      </div>
     </div>
   );
 };
