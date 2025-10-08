@@ -40,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { UserPlus, Loader2, RefreshCw, Trash2, Mail, Upload, Download } from 'lucide-react';
+import { UserPlus, Loader2, RefreshCw, Trash2, Mail, Upload, Download, X } from 'lucide-react';
 
 interface UserWithRoles extends Profile {
   roles: string[];
@@ -68,6 +68,14 @@ export const UserManagement = () => {
     errors: any[];
   }>({ valid: [], duplicates: [], errors: [] });
   const [bulkResults, setBulkResults] = useState<any>(null);
+  
+  // Массовые действия
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [bulkResendDialogOpen, setBulkResendDialogOpen] = useState(false);
+  const [bulkActionResults, setBulkActionResults] = useState<any>(null);
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -574,6 +582,133 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
     setBulkUploadOpen(false);
   };
 
+  // Функции для массовых действий
+  const toggleUserSelection = (userId: string) => {
+    const newSelection = new Set(selectedUsers);
+    if (newSelection.has(userId)) {
+      newSelection.delete(userId);
+    } else {
+      newSelection.add(userId);
+    }
+    setSelectedUsers(newSelection);
+  };
+
+  const toggleAllUsers = () => {
+    if (selectedUsers.size === users.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(users.map(u => u.id)));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedUsers(new Set());
+  };
+
+  const getSelectedUsers = () => {
+    return users.filter(u => selectedUsers.has(u.id));
+  };
+
+  const handleBulkResendInvitations = async () => {
+    setBulkResendDialogOpen(false);
+    setBulkActionLoading(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch(
+        `https://bpnzpiileyneehtihivc.supabase.co/functions/v1/bulk-resend-invitations`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            user_ids: Array.from(selectedUsers)
+          })
+        }
+      );
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to resend invitations');
+      }
+
+      setBulkActionResults(result);
+      clearSelection();
+      await loadUsers();
+
+      toast({
+        title: "Рассылка завершена",
+        description: `Отправлено: ${result.summary.sent}, Ошибок: ${result.summary.failed}`,
+      });
+    } catch (error: any) {
+      console.error('Error in bulk resend:', error);
+      toast({
+        variant: "destructive",
+        title: "Ошибка массовой рассылки",
+        description: error.message,
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleteDialogOpen(false);
+    setBulkActionLoading(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch(
+        `https://bpnzpiileyneehtihivc.supabase.co/functions/v1/bulk-delete-users`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            user_ids: Array.from(selectedUsers)
+          })
+        }
+      );
+
+      const result = await response.json();
+
+      if (!result.success && result.error) {
+        throw new Error(result.error);
+      }
+
+      setBulkActionResults(result);
+      clearSelection();
+      await loadUsers();
+
+      toast({
+        title: "Удаление завершено",
+        description: `Удалено: ${result.summary.deleted}, Заблокировано: ${result.summary.blocked || 0}, Ошибок: ${result.summary.failed}`,
+      });
+    } catch (error: any) {
+      console.error('Error in bulk delete:', error);
+      toast({
+        variant: "destructive",
+        title: "Ошибка массового удаления",
+        description: error.message,
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -854,9 +989,55 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
         </div>
       </div>
 
+      {/* Панель массовых действий */}
+      {selectedUsers.size > 0 && (
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <span className="font-medium">
+              Выбрано: {selectedUsers.size} {selectedUsers.size === 1 ? 'пользователь' : 'пользователей'}
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setBulkResendDialogOpen(true)}
+              disabled={bulkActionLoading}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              Отправить приглашения
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkDeleteDialogOpen(true)}
+              disabled={bulkActionLoading}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Удалить
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSelection}
+              disabled={bulkActionLoading}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[50px]">
+              <Checkbox
+                checked={selectedUsers.size === users.length && users.length > 0}
+                onCheckedChange={toggleAllUsers}
+                disabled={loadingUsers || users.length === 0}
+              />
+            </TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Имя</TableHead>
             <TableHead>Роли</TableHead>
@@ -870,20 +1051,29 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
         <TableBody>
           {loadingUsers ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-8">
+              <TableCell colSpan={9} className="text-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 <p className="text-sm text-muted-foreground mt-2">Загрузка пользователей...</p>
               </TableCell>
             </TableRow>
           ) : users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                 Пользователи не найдены
               </TableCell>
             </TableRow>
           ) : (
             users.map((user) => (
-              <TableRow key={user.id}>
+              <TableRow 
+                key={user.id}
+                className={selectedUsers.has(user.id) ? 'bg-muted/50' : ''}
+              >
+                <TableCell>
+                  <Checkbox
+                    checked={selectedUsers.has(user.id)}
+                    onCheckedChange={() => toggleUserSelection(user.id)}
+                  />
+                </TableCell>
                 <TableCell className="font-medium">{user.email}</TableCell>
                 <TableCell>{user.full_name || '-'}</TableCell>
                 <TableCell>
@@ -977,6 +1167,166 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Диалог подтверждения массового удаления */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠️ Подтверждение массового удаления</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы собираетесь удалить {selectedUsers.size} {selectedUsers.size === 1 ? 'пользователя' : 'пользователей'}:
+              <div className="mt-4 max-h-40 overflow-y-auto space-y-1">
+                {getSelectedUsers().slice(0, 10).map(user => (
+                  <div key={user.id} className="text-sm">
+                    • {user.email} {user.roles.includes('admin') && '(Администратор)'}
+                  </div>
+                ))}
+                {selectedUsers.size > 10 && (
+                  <div className="text-sm text-muted-foreground">
+                    ... и еще {selectedUsers.size - 10}
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 p-3 bg-destructive/10 rounded-md">
+                <p className="text-sm font-medium text-destructive">
+                  Это действие необратимо!
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Будут удалены профили, роли, доступы и все ответы пользователей.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkActionLoading}>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={bulkActionLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkActionLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Удаление...
+                </>
+              ) : (
+                'Удалить'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Диалог подтверждения массовой рассылки */}
+      <AlertDialog open={bulkResendDialogOpen} onOpenChange={setBulkResendDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>📧 Подтверждение массовой рассылки</AlertDialogTitle>
+            <AlertDialogDescription>
+              Отправить приглашения {selectedUsers.size} {selectedUsers.size === 1 ? 'пользователю' : 'пользователям'}?
+              <div className="mt-4 max-h-40 overflow-y-auto space-y-1">
+                {getSelectedUsers().slice(0, 10).map(user => (
+                  <div key={user.id} className="text-sm">
+                    • {user.email} 
+                    {user.last_sign_in_at ? ' (Повторная отправка)' : ' (Письмо не отправлялось)'}
+                  </div>
+                ))}
+                {selectedUsers.size > 10 && (
+                  <div className="text-sm text-muted-foreground">
+                    ... и еще {selectedUsers.size - 10}
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkActionLoading}>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkResendInvitations}
+              disabled={bulkActionLoading}
+            >
+              {bulkActionLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Отправка...
+                </>
+              ) : (
+                'Отправить'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Диалог результатов массовых действий */}
+      {bulkActionResults && (
+        <AlertDialog open={!!bulkActionResults} onOpenChange={() => setBulkActionResults(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {bulkActionResults.results.deleted !== undefined ? 'Результаты массового удаления' : 'Результаты массовой рассылки'}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    {bulkActionResults.results.deleted !== undefined ? (
+                      <>
+                        <div className="bg-green-50 p-3 rounded-lg">
+                          <div className="text-sm font-medium text-green-900">✅ Удалено</div>
+                          <div className="text-2xl font-bold text-green-700">{bulkActionResults.summary.deleted}</div>
+                        </div>
+                        {bulkActionResults.summary.blocked > 0 && (
+                          <div className="bg-yellow-50 p-3 rounded-lg">
+                            <div className="text-sm font-medium text-yellow-900">⚠️ Заблокировано</div>
+                            <div className="text-2xl font-bold text-yellow-700">{bulkActionResults.summary.blocked}</div>
+                          </div>
+                        )}
+                        {bulkActionResults.summary.failed > 0 && (
+                          <div className="bg-red-50 p-3 rounded-lg">
+                            <div className="text-sm font-medium text-red-900">❌ Ошибок</div>
+                            <div className="text-2xl font-bold text-red-700">{bulkActionResults.summary.failed}</div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="bg-green-50 p-3 rounded-lg">
+                          <div className="text-sm font-medium text-green-900">✅ Отправлено</div>
+                          <div className="text-2xl font-bold text-green-700">{bulkActionResults.summary.sent}</div>
+                        </div>
+                        {bulkActionResults.summary.failed > 0 && (
+                          <div className="bg-red-50 p-3 rounded-lg">
+                            <div className="text-sm font-medium text-red-900">❌ Ошибок</div>
+                            <div className="text-2xl font-bold text-red-700">{bulkActionResults.summary.failed}</div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {bulkActionResults.results.failed && bulkActionResults.results.failed.length > 0 && (
+                    <div className="border rounded-lg p-3">
+                      <h4 className="font-medium mb-2 text-sm">Детали ошибок:</h4>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {bulkActionResults.results.failed.map((err: any, idx: number) => (
+                          <div key={idx} className="text-xs text-destructive">
+                            • {err.user_id}: {err.error}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setBulkActionResults(null)}>
+                Закрыть
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 };
