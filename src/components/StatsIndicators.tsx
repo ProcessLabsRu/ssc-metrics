@@ -96,6 +96,12 @@ export const StatsIndicators = () => {
     loadStats();
   };
 
+  const getHoursIconColor = (hours: number): string => {
+    if (hours < 145) return "text-orange-500";
+    if (hours >= 145 && hours <= 180) return "text-green-500";
+    return "text-red-500";
+  };
+
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="flex gap-4">
@@ -121,7 +127,7 @@ export const StatsIndicators = () => {
 
         <Card className="px-4 py-2">
           <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-orange-500" />
+            <Clock className={`h-5 w-5 ${getHoursIconColor(stats.totalHours)}`} />
             <div>
               <div className="text-xs text-muted-foreground">Внесено человеко-часов</div>
               <div className="text-lg font-bold">{stats.totalHours.toFixed(2)}</div>
