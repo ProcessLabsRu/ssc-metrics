@@ -291,54 +291,9 @@ export const UserManagement = () => {
     }
   };
 
-  const confirmDeleteUser = (user: UserWithRoles) => {
-    setUserToDelete(user);
+  const confirmDeleteUser = (userToDelete: UserWithRoles) => {
+    setUserToDelete(userToDelete);
     setDeleteDialogOpen(true);
-  };
-
-  const handleResendInvitation = async (userId: string) => {
-    try {
-      const { error } = await supabase.functions.invoke('resend-invitation-email', {
-        body: { user_id: userId }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Успешно",
-        description: "Приглашение отправлено повторно",
-      });
-
-      loadUsers();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Ошибка",
-        description: error.message,
-      });
-    }
-  };
-
-  const getStatusBadge = (user: UserWithRoles) => {
-    if (user.last_sign_in_at) {
-      return (
-        <Badge variant="default" className="bg-green-500">
-          Активен
-        </Badge>
-      );
-    }
-    if (user.invitation_sent_at) {
-      return (
-        <Badge variant="secondary">
-          Письмо отправлено
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="outline">
-        Ожидает приглашения
-      </Badge>
-    );
   };
 
   const handleResendInvitation = async (userId: string) => {
@@ -543,6 +498,7 @@ export const UserManagement = () => {
               </TableCell>
             </TableRow>
           ) : (
+            users.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">{user.email}</TableCell>
                 <TableCell>{user.full_name || '-'}</TableCell>
@@ -593,6 +549,7 @@ export const UserManagement = () => {
                   </div>
                 </TableCell>
               </TableRow>
+            ))
           )}
         </TableBody>
       </Table>
