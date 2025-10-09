@@ -40,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { UserPlus, Loader2, RefreshCw, Trash2, Mail, Upload, Download, X } from 'lucide-react';
+import { UserPlus, Loader2, RefreshCw, Trash2, Mail, Upload, Download, X, Edit, Key, Copy } from 'lucide-react';
 
 interface UserWithRoles extends Profile {
   roles: string[];
@@ -76,6 +76,18 @@ export const UserManagement = () => {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkResendDialogOpen, setBulkResendDialogOpen] = useState(false);
   const [bulkActionResults, setBulkActionResults] = useState<any>(null);
+  
+  // Редактирование процессов
+  const [editingUser, setEditingUser] = useState<UserWithRoles | null>(null);
+  const [showEditProcessesDialog, setShowEditProcessesDialog] = useState(false);
+  const [selectedProcesses, setSelectedProcesses] = useState<string[]>([]);
+  const [isUpdatingAccess, setIsUpdatingAccess] = useState(false);
+  
+  // Сброс пароля
+  const [resetPasswordUser, setResetPasswordUser] = useState<UserWithRoles | null>(null);
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState<string>('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   
   const [formData, setFormData] = useState({
     email: '',
@@ -711,6 +723,107 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
     }
   };
 
+  // Редактирование доступных процессов
+  const handleEditProcesses = (user: UserWithRoles) => {
+    setEditingUser(user);
+    setSelectedProcesses(user.accessProcesses);
+    setShowEditProcessesDialog(true);
+  };
+
+  const handleUpdateAccess = async () => {
+    if (!editingUser) return;
+    
+    setIsUpdatingAccess(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await supabase.functions.invoke('update-user-access', {
+        body: { 
+          user_id: editingUser.id,
+          f1_indices: selectedProcesses
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) throw response.error;
+
+      toast({
+        title: "Успешно",
+        description: "Доступ к процессам обновлен",
+      });
+
+      setShowEditProcessesDialog(false);
+      await loadUsers();
+    } catch (error: any) {
+      console.error('Error updating user access:', error);
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось обновить доступ",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingAccess(false);
+    }
+  };
+
+  // Сброс пароля
+  const handleResetPassword = (user: UserWithRoles) => {
+    setResetPasswordUser(user);
+    setGeneratedPassword('');
+    setShowResetPasswordDialog(true);
+  };
+
+  const handleConfirmResetPassword = async () => {
+    if (!resetPasswordUser) return;
+    
+    setIsResettingPassword(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await supabase.functions.invoke('reset-user-password', {
+        body: { user_id: resetPasswordUser.id },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) throw response.error;
+
+      setGeneratedPassword(response.data.temporary_password);
+
+      toast({
+        title: "Успешно",
+        description: "Пароль успешно сброшен",
+      });
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось сбросить пароль",
+        variant: "destructive",
+      });
+      setShowResetPasswordDialog(false);
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText(generatedPassword);
+    toast({
+      title: "Скопировано",
+      description: "Пароль скопирован в буфер обмена",
+    });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -1120,6 +1233,24 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEditProcesses(user)}
+                      disabled={loading}
+                      title="Редактировать процессы"
+                    >
+                      <Edit className="h-4 w-4 text-blue-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleResetPassword(user)}
+                      disabled={loading}
+                      title="Сбросить пароль"
+                    >
+                      <Key className="h-4 w-4 text-orange-500" />
+                    </Button>
                     {!user.last_sign_in_at && (
                       <Button
                         variant="ghost"
@@ -1128,7 +1259,7 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
                         disabled={loading}
                         title="Отправить приглашение повторно"
                       >
-                        <Mail className="h-4 w-4 text-blue-500" />
+                        <Mail className="h-4 w-4 text-green-500" />
                       </Button>
                     )}
                     <Button
@@ -1346,6 +1477,135 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+      {/* Диалог редактирования процессов */}
+      <Dialog open={showEditProcessesDialog} onOpenChange={setShowEditProcessesDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Редактирование доступа к процессам</DialogTitle>
+            <DialogDescription>
+              Пользователь: <strong>{editingUser?.email}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Label>Выберите доступные процессы</Label>
+            <div className="border rounded-md p-4 max-h-96 overflow-y-auto space-y-2">
+              {processes.map((process) => (
+                <div key={process.f1_index} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`process-${process.f1_index}`}
+                    checked={selectedProcesses.includes(process.f1_index)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedProcesses([...selectedProcesses, process.f1_index]);
+                      } else {
+                        setSelectedProcesses(selectedProcesses.filter(p => p !== process.f1_index));
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor={`process-${process.f1_index}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                  >
+                    {process.f1_index} - {process.f1_name}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowEditProcessesDialog(false)}
+                disabled={isUpdatingAccess}
+              >
+                Отмена
+              </Button>
+              <Button
+                onClick={handleUpdateAccess}
+                disabled={isUpdatingAccess}
+              >
+                {isUpdatingAccess ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Сохранение...
+                  </>
+                ) : (
+                  'Сохранить'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог сброса пароля */}
+      <AlertDialog open={showResetPasswordDialog} onOpenChange={setShowResetPasswordDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Сброс пароля</AlertDialogTitle>
+            <AlertDialogDescription>
+              {generatedPassword ? (
+                <div className="space-y-4">
+                  <p>Пароль успешно сброшен для пользователя: <strong>{resetPasswordUser?.email}</strong></p>
+                  <div className="border rounded-md p-4 bg-muted">
+                    <Label className="text-sm mb-2 block">Временный пароль:</Label>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-background px-3 py-2 rounded border font-mono text-sm">
+                        {generatedPassword}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleCopyPassword}
+                        title="Скопировать"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    ⚠️ Обязательно сохраните этот пароль и передайте его пользователю. 
+                    После закрытия этого окна пароль будет недоступен.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  Вы уверены, что хотите сбросить пароль для пользователя <strong>{resetPasswordUser?.email}</strong>?
+                  <br /><br />
+                  Будет создан временный пароль, который нужно будет передать пользователю.
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {generatedPassword ? (
+              <AlertDialogAction onClick={() => {
+                setShowResetPasswordDialog(false);
+                setGeneratedPassword('');
+              }}>
+                Закрыть
+              </AlertDialogAction>
+            ) : (
+              <>
+                <AlertDialogCancel disabled={isResettingPassword}>Отмена</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleConfirmResetPassword}
+                  disabled={isResettingPassword}
+                >
+                  {isResettingPassword ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Сброс...
+                    </>
+                  ) : (
+                    'Сбросить пароль'
+                  )}
+                </AlertDialogAction>
+              </>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
