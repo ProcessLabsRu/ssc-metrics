@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Profile, Process1, UserAccess } from '@/types/database';
+import { Profile, Process1, UserAccess, Organization, Department } from '@/types/database';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,11 +50,16 @@ interface UserWithRoles extends Profile {
   last_sign_in_at: string | null;
   questionnaire_completed: boolean;
   questionnaire_completed_at: string | null;
+  organization_name?: string;
+  department_name?: string;
 }
 
 export const UserManagement = () => {
   const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [processes, setProcesses] = useState<Process1[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [filteredDepartments, setFilteredDepartments] = useState<Department[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -95,21 +100,29 @@ export const UserManagement = () => {
     fullName: '',
     selectedRole: 'user' as 'admin' | 'user',
     selectedProcesses: new Set<string>(),
+    organizationId: '',
+    departmentId: '',
   });
   const { toast } = useToast();
 
   useEffect(() => {
     loadUsers();
     loadProcesses();
+    loadOrganizations();
+    loadDepartments();
   }, []);
 
   const loadUsers = async () => {
     setLoadingUsers(true);
     try {
-      // Загружаем профили пользователей
+      // Загружаем профили пользователей с организациями и подразделениями
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          *,
+          organizations(name),
+          departments(name)
+        `)
         .order('created_at', { ascending: false });
       
       if (!profiles) {
@@ -119,7 +132,7 @@ export const UserManagement = () => {
 
       // Для каждого пользователя загружаем его роли и доступы
       const usersWithRoles = await Promise.all(
-        profiles.map(async (profile) => {
+        profiles.map(async (profile: any) => {
           // Загружаем роли пользователя
           const { data: userRoles } = await supabase
             .from('user_roles')
@@ -141,6 +154,8 @@ export const UserManagement = () => {
             last_sign_in_at: profile.last_sign_in_at,
             questionnaire_completed: profile.questionnaire_completed || false,
             questionnaire_completed_at: profile.questionnaire_completed_at,
+            organization_name: profile.organizations?.name,
+            department_name: profile.departments?.name,
           };
         })
       );
@@ -166,6 +181,36 @@ export const UserManagement = () => {
       .order('sort');
     
     setProcesses(data || []);
+  };
+
+  const loadOrganizations = async () => {
+    const { data } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+    setOrganizations(data || []);
+  };
+
+  const loadDepartments = async () => {
+    const { data } = await supabase
+      .from('departments')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+    setDepartments(data || []);
+  };
+
+  const handleOrganizationChange = (orgId: string) => {
+    setFormData({ 
+      ...formData, 
+      organizationId: orgId,
+      departmentId: '' // Сбросить подразделение при смене организации
+    });
+    
+    // Отфильтровать подразделения
+    const filtered = departments.filter(d => d.organization_id === orgId);
+    setFilteredDepartments(filtered);
   };
 
   const generatePassword = () => {
@@ -216,6 +261,15 @@ export const UserManagement = () => {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!formData.organizationId) {
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: "Выберите организацию",
+      });
+      return;
+    }
+    
     if (formData.selectedProcesses.size === 0) {
       toast({
         variant: "destructive",
@@ -235,6 +289,8 @@ export const UserManagement = () => {
           full_name: formData.fullName,
           role: formData.selectedRole,
           processes: Array.from(formData.selectedProcesses),
+          organization_id: formData.organizationId,
+          department_id: formData.departmentId || undefined,
         },
       });
 
@@ -281,6 +337,8 @@ export const UserManagement = () => {
         fullName: '',
         selectedRole: 'user',
         selectedProcesses: new Set(),
+        organizationId: '',
+        departmentId: '',
       });
       loadUsers();
     } catch (error: any) {
@@ -400,9 +458,9 @@ export const UserManagement = () => {
   };
 
   const downloadTemplate = () => {
-    const template = `email,full_name,processes
-example1@company.com,Иван Иванов,"1.1,1.2"
-example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
+    const template = `email,full_name,processes,organization_id,department_id
+example1@company.com,Иван Иванов,"1.1,1.2",org-uuid-here,dept-uuid-here
+example2@company.com,Петр Петров,"1.1,1.3,1.4",org-uuid-here,`;
     
     const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -466,29 +524,67 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
           continue;
         }
 
-        // Validate processes
-        const processesStr = row.processes?.replace(/"/g, '').trim();
-        const processArr = processesStr ? processesStr.split(',').map((p: string) => p.trim()) : [];
-        
-        if (processArr.length === 0) {
-          errorMsg = 'Не указаны процессы';
+        // Validate organization
+        if (!row.organization_id) {
+          errorMsg = 'Не указана организация (organization_id)';
           hasError = true;
         } else {
-          const invalidProcesses = processArr.filter((p: string) => !validProcessIds.has(p));
-          if (invalidProcesses.length > 0) {
-            errorMsg = `Неверные процессы: ${invalidProcesses.join(', ')}`;
+          const { data: orgExists } = await supabase
+            .from('organizations')
+            .select('id')
+            .eq('id', row.organization_id)
+            .maybeSingle();
+          
+          if (!orgExists) {
+            errorMsg = 'Неверный organization_id';
             hasError = true;
+          }
+        }
+
+        // Validate department if provided
+        if (!hasError && row.department_id && row.department_id.trim()) {
+          const { data: deptExists } = await supabase
+            .from('departments')
+            .select('id, organization_id')
+            .eq('id', row.department_id)
+            .eq('organization_id', row.organization_id)
+            .maybeSingle();
+          
+          if (!deptExists) {
+            errorMsg = 'Неверный department_id или не принадлежит указанной организации';
+            hasError = true;
+          }
+        }
+
+        // Validate processes
+        if (!hasError) {
+          const processesStr = row.processes?.replace(/"/g, '').trim();
+          const processArr = processesStr ? processesStr.split(',').map((p: string) => p.trim()) : [];
+          
+          if (processArr.length === 0) {
+            errorMsg = 'Не указаны процессы';
+            hasError = true;
+          } else {
+            const invalidProcesses = processArr.filter((p: string) => !validProcessIds.has(p));
+            if (invalidProcesses.length > 0) {
+              errorMsg = `Неверные процессы: ${invalidProcesses.join(', ')}`;
+              hasError = true;
+            }
+          }
+
+          if (!hasError) {
+            valid.push({
+              email,
+              full_name: row.full_name || email,
+              processes: processArr,
+              organization_id: row.organization_id,
+              department_id: row.department_id?.trim() || undefined,
+            });
           }
         }
 
         if (hasError) {
           errors.push({ ...row, error: errorMsg });
-        } else {
-          valid.push({
-            email,
-            full_name: row.full_name || email,
-            processes: processArr,
-          });
         }
       }
 
@@ -871,13 +967,15 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
                     </div>
                   </div>
 
-                  <div className="bg-muted p-4 rounded-lg">
-                    <div className="text-sm font-medium mb-2">ℹ️ Формат CSV:</div>
-                    <code className="text-xs">email,full_name,processes</code>
-                    <div className="text-xs text-muted-foreground mt-2">
-                      Процессы указываются через запятую в кавычках: "1.1,1.2,1.3"
+                    <div className="bg-muted p-4 rounded-lg">
+                      <div className="text-sm font-medium mb-2">ℹ️ Формат CSV:</div>
+                      <code className="text-xs">email,full_name,processes,organization_id,department_id</code>
+                      <div className="text-xs text-muted-foreground mt-2">
+                        • Процессы указываются через запятую в кавычках: "1.1,1.2,1.3"<br/>
+                        • organization_id (обязательно): UUID организации<br/>
+                        • department_id (опционально): UUID подразделения или пусто
+                      </div>
                     </div>
-                  </div>
 
                   {validationResults.valid.length > 0 || validationResults.duplicates.length > 0 || validationResults.errors.length > 0 ? (
                     <div className="space-y-4">
@@ -1038,6 +1136,45 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="organization">Организация *</Label>
+                <Select
+                  value={formData.organizationId}
+                  onValueChange={handleOrganizationChange}
+                  disabled={loading}
+                >
+                  <SelectTrigger id="organization">
+                    <SelectValue placeholder="Выберите организацию" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations.map((org) => (
+                      <SelectItem key={org.id} value={org.id}>
+                        {org.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="department">Подразделение</Label>
+                <Select
+                  value={formData.departmentId}
+                  onValueChange={(value) => setFormData({ ...formData, departmentId: value })}
+                  disabled={loading || !formData.organizationId}
+                >
+                  <SelectTrigger id="department">
+                    <SelectValue placeholder={!formData.organizationId ? "Сначала выберите организацию" : "Выберите подразделение (опционально)"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Без подразделения</SelectItem>
+                    {filteredDepartments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="role">Роль</Label>
                 <Select
                   value={formData.selectedRole}
@@ -1155,6 +1292,8 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
             </TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Имя</TableHead>
+            <TableHead>Организация</TableHead>
+            <TableHead>Подразделение</TableHead>
             <TableHead>Роли</TableHead>
             <TableHead>Статус</TableHead>
             <TableHead>Статус анкеты</TableHead>
@@ -1167,14 +1306,14 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
         <TableBody>
           {loadingUsers ? (
             <TableRow>
-              <TableCell colSpan={10} className="text-center py-8">
+              <TableCell colSpan={12} className="text-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 <p className="text-sm text-muted-foreground mt-2">Загрузка пользователей...</p>
               </TableCell>
             </TableRow>
           ) : users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                 Пользователи не найдены
               </TableCell>
             </TableRow>
@@ -1192,6 +1331,8 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4"`;
                 </TableCell>
                 <TableCell className="font-medium">{user.email}</TableCell>
                 <TableCell>{user.full_name || '-'}</TableCell>
+                <TableCell>{user.organization_name || '-'}</TableCell>
+                <TableCell>{user.department_name || '-'}</TableCell>
                 <TableCell>
                   <div className="flex gap-1 flex-wrap">
                     {user.roles.length > 0 ? (

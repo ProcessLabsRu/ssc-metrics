@@ -10,6 +10,8 @@ interface BulkUser {
   email: string;
   full_name?: string;
   processes: string[];
+  organization_id: string;
+  department_id?: string;
 }
 
 interface BulkCreateRequest {
@@ -94,6 +96,41 @@ serve(async (req) => {
           continue;
         }
 
+        // Validate organization
+        if (!userData.organization_id) {
+          results.errors.push({ email, error: 'Organization is required' });
+          continue;
+        }
+
+        const { data: orgExists } = await supabaseClient
+          .from('organizations')
+          .select('id')
+          .eq('id', userData.organization_id)
+          .maybeSingle();
+
+        if (!orgExists) {
+          results.errors.push({ email, error: 'Invalid organization' });
+          continue;
+        }
+
+        // Validate department if provided
+        if (userData.department_id) {
+          const { data: deptExists } = await supabaseClient
+            .from('departments')
+            .select('id, organization_id')
+            .eq('id', userData.department_id)
+            .eq('organization_id', userData.organization_id)
+            .maybeSingle();
+
+          if (!deptExists) {
+            results.errors.push({ 
+              email, 
+              error: 'Invalid department or department does not belong to organization' 
+            });
+            continue;
+          }
+        }
+
         // Validate processes
         if (!userData.processes || userData.processes.length === 0) {
           results.errors.push({ email, error: 'No processes specified' });
@@ -132,14 +169,16 @@ serve(async (req) => {
           continue;
         }
 
-        // Create profile
-        const { error: profileError } = await supabaseClient
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            email,
-            full_name: userData.full_name || email,
-          });
+      // Create profile
+      const { error: profileError } = await supabaseClient
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          email,
+          full_name: userData.full_name || email,
+          organization_id: userData.organization_id,
+          department_id: userData.department_id || null,
+        });
 
         if (profileError) {
           console.error('Profile creation error:', profileError);

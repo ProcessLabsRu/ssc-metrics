@@ -3,7 +3,7 @@ export interface Process1 {
   f1_index: string;
   f1_name: string;
   is_active: boolean | null;
-  sort: string | null;
+  sort: number | null;
   note: string | null;
 }
 
@@ -12,7 +12,7 @@ export interface Process2 {
   f1_index: string | null;
   f2_name: string | null;
   is_active: boolean | null;
-  sort: string | null;
+  sort: number | null;
   note: string | null;
 }
 
@@ -21,7 +21,7 @@ export interface Process3 {
   f2_index: string | null;
   f3_name: string | null;
   is_active: boolean | null;
-  sort: string | null;
+  sort: number | null;
   note: string | null;
 }
 
@@ -30,7 +30,7 @@ export interface Process4 {
   f3_index: string | null;
   f4_name: string | null;
   is_active: boolean | null;
-  sort: string | null;
+  sort: number | null;
   note: string | null;
 }
 
@@ -54,10 +54,29 @@ export interface UserResponse {
   submitted_at?: string | null;
 }
 
+export interface Organization {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+}
+
+export interface Department {
+  id: string;
+  organization_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+}
+
 export interface Profile {
   id: string;
   email: string;
   full_name: string | null;
+  organization_id: string | null;
+  department_id: string | null;
   created_at: string;
   updated_at: string;
   invitation_sent_at?: string | null;

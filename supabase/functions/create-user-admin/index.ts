@@ -12,6 +12,8 @@ interface CreateUserRequest {
   full_name: string;
   role: 'admin' | 'user';
   processes: string[];
+  organization_id: string;
+  department_id?: string;
 }
 
 serve(async (req) => {
@@ -56,9 +58,39 @@ serve(async (req) => {
       throw new Error('Unauthorized: Admin access required');
     }
 
-    const { email, password, full_name, role, processes }: CreateUserRequest = await req.json();
+    const { email, password, full_name, role, processes, organization_id, department_id }: CreateUserRequest = await req.json();
 
-    console.log('Creating user:', { email, full_name, role, processes });
+    console.log('Creating user:', { email, full_name, role, processes, organization_id, department_id });
+
+    // Validate required fields
+    if (!organization_id) {
+      throw new Error('Organization is required');
+    }
+
+    // Validate organization exists
+    const { data: orgExists, error: orgError } = await supabaseAdmin
+      .from('organizations')
+      .select('id')
+      .eq('id', organization_id)
+      .maybeSingle();
+
+    if (orgError || !orgExists) {
+      throw new Error('Invalid organization');
+    }
+
+    // Validate department if provided
+    if (department_id) {
+      const { data: deptExists, error: deptError } = await supabaseAdmin
+        .from('departments')
+        .select('id, organization_id')
+        .eq('id', department_id)
+        .eq('organization_id', organization_id)
+        .maybeSingle();
+
+      if (deptError || !deptExists) {
+        throw new Error('Invalid department or department does not belong to organization');
+      }
+    }
 
     // Check if user already exists
     const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
@@ -73,7 +105,11 @@ serve(async (req) => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name }
+      user_metadata: { 
+        full_name,
+        organization_id,
+        department_id 
+      }
     });
 
     if (createError) {
@@ -92,6 +128,20 @@ serve(async (req) => {
 
     // Wait for handle_new_user trigger to create profile
     await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Update profile with organization and department
+    const { error: profileUpdateError } = await supabaseAdmin
+      .from('profiles')
+      .update({
+        organization_id,
+        department_id: department_id || null,
+      })
+      .eq('id', newUser.user.id);
+
+    if (profileUpdateError) {
+      console.error('Error updating profile:', profileUpdateError);
+      // Don't throw, just log - user is already created
+    }
 
     // Insert user role
     const { error: roleInsertError } = await supabaseAdmin
