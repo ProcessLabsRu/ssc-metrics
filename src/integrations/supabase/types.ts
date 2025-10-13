@@ -62,6 +62,57 @@ export type Database = {
         }
         Relationships: []
       }
+      dashboard_user_responses_backup: {
+        Row: {
+          backup_at: string | null
+          created_at: string | null
+          f1_name: string | null
+          f2_name: string | null
+          f3_name: string | null
+          f4_name: string | null
+          id: number | null
+          is_submitted: boolean | null
+          labor_hours: number | null
+          notes: string | null
+          submitted_at: string | null
+          system_name: string | null
+          user_email: string | null
+          user_name: string | null
+        }
+        Insert: {
+          backup_at?: string | null
+          created_at?: string | null
+          f1_name?: string | null
+          f2_name?: string | null
+          f3_name?: string | null
+          f4_name?: string | null
+          id?: number | null
+          is_submitted?: boolean | null
+          labor_hours?: number | null
+          notes?: string | null
+          submitted_at?: string | null
+          system_name?: string | null
+          user_email?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          backup_at?: string | null
+          created_at?: string | null
+          f1_name?: string | null
+          f2_name?: string | null
+          f3_name?: string | null
+          f4_name?: string | null
+          id?: number | null
+          is_submitted?: boolean | null
+          labor_hours?: number | null
+          notes?: string | null
+          submitted_at?: string | null
+          system_name?: string | null
+          user_email?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
           created_at: string | null
@@ -2047,6 +2098,7 @@ export type Database = {
       user_responses: {
         Row: {
           created_at: string
+          executor_id: number | null
           f4_index: string | null
           id: number
           is_submitted: boolean | null
@@ -2058,6 +2110,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          executor_id?: number | null
           f4_index?: string | null
           id?: number
           is_submitted?: boolean | null
@@ -2069,6 +2122,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          executor_id?: number | null
           f4_index?: string | null
           id?: number
           is_submitted?: boolean | null
@@ -2079,6 +2133,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "user_responses_executor_id_fkey"
+            columns: ["executor_id"]
+            isOneToOne: false
+            referencedRelation: "executors"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_responses_f4_index_fkey"
             columns: ["f4_index"]

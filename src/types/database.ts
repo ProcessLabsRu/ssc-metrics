@@ -52,6 +52,7 @@ export interface UserResponse {
   created_at: string;
   is_submitted?: boolean;
   submitted_at?: string | null;
+  executor_id?: number | null;
 }
 
 export interface Organization {
