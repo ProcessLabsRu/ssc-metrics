@@ -14,54 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      dashboard_user_responses: {
-        Row: {
-          created_at: string | null
-          f1_name: string | null
-          f2_name: string | null
-          f3_name: string | null
-          f4_name: string | null
-          id: number
-          is_submitted: boolean | null
-          labor_hours: number | null
-          notes: string | null
-          submitted_at: string | null
-          system_name: string | null
-          user_email: string | null
-          user_name: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          f1_name?: string | null
-          f2_name?: string | null
-          f3_name?: string | null
-          f4_name?: string | null
-          id: number
-          is_submitted?: boolean | null
-          labor_hours?: number | null
-          notes?: string | null
-          submitted_at?: string | null
-          system_name?: string | null
-          user_email?: string | null
-          user_name?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          f1_name?: string | null
-          f2_name?: string | null
-          f3_name?: string | null
-          f4_name?: string | null
-          id?: number
-          is_submitted?: boolean | null
-          labor_hours?: number | null
-          notes?: string | null
-          submitted_at?: string | null
-          system_name?: string | null
-          user_email?: string | null
-          user_name?: string | null
-        }
-        Relationships: []
-      }
       departments: {
         Row: {
           created_at: string | null
