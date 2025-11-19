@@ -1,3 +1,4 @@
+import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,6 +30,7 @@ const Dashboard = () => {
 
   return (
     <div className="h-screen flex flex-col">
+      <ImpersonationBanner />
       <Header 
         userProfile={userProfile} 
         isAdmin={isAdmin} 
