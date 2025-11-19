@@ -98,12 +98,12 @@ export interface UserAccess {
   created_at: string;
 }
 
-export interface UiSettings {
+export interface AdminAuditLog {
   id: string;
-  logo_url: string | null;
-  header_title: string;
-  header_bg_color: string;
-  header_text_color: string;
-  updated_at: string | null;
-  updated_by: string | null;
+  admin_user_id: string;
+  target_user_id: string;
+  action: string;
+  metadata: Record<string, any>;
+  created_at: string;
 }
+

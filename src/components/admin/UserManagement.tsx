@@ -40,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { UserPlus, Loader2, RefreshCw, Trash2, Mail, Upload, Download, X, Edit, Key, Copy } from 'lucide-react';
+import { UserPlus, Loader2, RefreshCw, Trash2, Mail, Upload, Download, X, Edit, Key, Copy, LogIn } from 'lucide-react';
 
 interface UserWithRoles extends Profile {
   roles: string[];
@@ -93,6 +93,11 @@ export const UserManagement = () => {
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
   const [generatedPassword, setGeneratedPassword] = useState<string>('');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  
+  // Impersonation
+  const [impersonateUser, setImpersonateUser] = useState<UserWithRoles | null>(null);
+  const [showImpersonateDialog, setShowImpersonateDialog] = useState(false);
+  const [isImpersonating, setIsImpersonating] = useState(false);
   
   const [formData, setFormData] = useState({
     email: '',
@@ -920,6 +925,78 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4",org-uuid-here,`;
     });
   };
 
+  // Impersonation
+  const confirmImpersonate = (user: UserWithRoles) => {
+    setImpersonateUser(user);
+    setShowImpersonateDialog(true);
+  };
+
+  const handleImpersonate = async () => {
+    if (!impersonateUser) return;
+    
+    setIsImpersonating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        `https://bpnzpiileyneehtihivc.supabase.co/functions/v1/impersonate-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            user_id: impersonateUser.id,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to impersonate user');
+      }
+
+      // Store original admin session in localStorage for return functionality
+      localStorage.setItem('admin_session_backup', JSON.stringify(session));
+      localStorage.setItem('impersonated_user', JSON.stringify({
+        id: result.target_user.id,
+        email: result.target_user.email,
+        admin_email: result.admin_user.email,
+      }));
+
+      // Set the new session
+      const { error: setSessionError } = await supabase.auth.setSession({
+        access_token: result.session.access_token,
+        refresh_token: result.session.refresh_token,
+      });
+
+      if (setSessionError) {
+        throw setSessionError;
+      }
+
+      toast({
+        title: "Успешно",
+        description: `Вы вошли как ${result.target_user.email}`,
+      });
+
+      // Redirect to main page
+      window.location.href = '/';
+      
+    } catch (error: any) {
+      console.error('Impersonation error:', error);
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: error.message,
+      });
+    } finally {
+      setIsImpersonating(false);
+      setShowImpersonateDialog(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -1392,6 +1469,17 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4",org-uuid-here,`;
                     >
                       <Key className="h-4 w-4 text-orange-500" />
                     </Button>
+                    {!user.roles.includes('admin') && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => confirmImpersonate(user)}
+                        disabled={loading}
+                        title="Войти как пользователь"
+                      >
+                        <LogIn className="h-4 w-4 text-purple-500" />
+                      </Button>
+                    )}
                     {!user.last_sign_in_at && (
                       <Button
                         variant="ghost"
@@ -1744,6 +1832,60 @@ example2@company.com,Петр Петров,"1.1,1.3,1.4",org-uuid-here,`;
                 </AlertDialogAction>
               </>
             )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Диалог подтверждения impersonation */}
+      <AlertDialog open={showImpersonateDialog} onOpenChange={setShowImpersonateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠️ Войти как пользователь</AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="space-y-4">
+                <p>Вы собираетесь войти в систему как пользователь:</p>
+                <div className="p-3 bg-purple-50 rounded-md">
+                  <p className="font-medium">{impersonateUser?.email}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {impersonateUser?.full_name}
+                  </p>
+                </div>
+                <div className="p-3 bg-amber-50 rounded-md space-y-2">
+                  <p className="text-sm font-medium text-amber-900">
+                    ⚠️ Важно:
+                  </p>
+                  <ul className="text-xs text-amber-800 list-disc list-inside space-y-1">
+                    <li>Вы будете перенаправлены на главную страницу</li>
+                    <li>Вы увидите систему глазами этого пользователя</li>
+                    <li>Все действия будут выполнены от имени этого пользователя</li>
+                    <li>Это действие записывается в журнал аудита</li>
+                  </ul>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Чтобы вернуться к своему аккаунту, используйте кнопку "Вернуться к админу" на главной странице.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isImpersonating}>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleImpersonate}
+              disabled={isImpersonating}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {isImpersonating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Вход...
+                </>
+              ) : (
+                <>
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Войти как пользователь
+                </>
+              )}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
