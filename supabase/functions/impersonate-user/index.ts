@@ -27,6 +27,12 @@ serve(async (req) => {
       }
     );
 
+    // Regular client for verifying OTP
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    );
+
     // Verify the caller is an admin
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -126,24 +132,35 @@ serve(async (req) => {
       throw new Error('Failed to generate session for target user');
     }
 
-    // Extract tokens from the magic link URL
-    const actionLink = sessionData.properties.action_link;
-    const accessToken = actionLink.split('access_token=')[1]?.split('&')[0];
-    const refreshToken = actionLink.split('refresh_token=')[1]?.split('&')[0];
-
-    if (!accessToken || !refreshToken) {
-      throw new Error('Failed to extract tokens from magic link');
+    // Extract hashed_token from the magic link response
+    const hashedToken = sessionData.properties.hashed_token;
+    
+    if (!hashedToken) {
+      throw new Error('Failed to generate hashed token');
     }
 
-    console.log('Impersonation successful');
+    console.log('Generated hashed token, verifying OTP...');
+
+    // Verify OTP to create a real session
+    const { data: verified, error: verifyError } = await supabaseClient.auth.verifyOtp({
+      token_hash: hashedToken,
+      type: 'email',
+    });
+
+    if (verifyError || !verified.session) {
+      console.error('OTP verification error:', verifyError);
+      throw new Error('Failed to verify OTP and create session');
+    }
+
+    console.log('Session created successfully');
 
     return new Response(
       JSON.stringify({
         success: true,
         message: `Successfully impersonating ${targetUser.user.email}`,
         session: {
-          access_token: accessToken,
-          refresh_token: refreshToken,
+          access_token: verified.session.access_token,
+          refresh_token: verified.session.refresh_token,
         },
         target_user: {
           id: targetUser.user.id,
